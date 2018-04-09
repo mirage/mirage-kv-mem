@@ -40,7 +40,14 @@ module Pure = struct
    | None -> Error `No_directory_entry
    | Some (is_dir, value) -> Ok Mirage_fs.{ filename = path ; read_only = false ; directory = is_dir ; size = size t path }
   
-  let listdir (t : t) path = assert false 
+  let listdir (t : t) path = 
+    let pl = String.length path in
+    M.fold (fun key value acc -> 
+      if String.length key >= pl && String.equal path (String.sub key 0 pl) then
+        key :: acc
+      else
+        acc)
+    t []
   
   let write (t : t) path offset data = 
     match M.find_opt path t with
