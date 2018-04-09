@@ -1,4 +1,3 @@
-module Map = Mirage_fs_mem.Pure.M
 let compare_t = let module M = Mirage_fs_mem.Pure in (module M: Alcotest.TESTABLE with type t = Mirage_fs_mem.Pure.t)
 
 let we =
@@ -40,10 +39,15 @@ let compare_stat_res = Alcotest.result stat e
 
 let bc = Cstruct.of_string "bc"
 let neu = Cstruct.of_string "NEU"
-let map = Map.add "a" (false, bc) Map.empty
+let add k v m = match Mirage_fs_mem.Pure.write m k 0 v with 
+ | Error _ -> assert false
+ | Ok m -> m
+let empty_m = Mirage_fs_mem.Pure.empty ()
+
+let map = add "a" bc empty_m
 
 let empty () =
-  let expected = Map.empty in
+  let expected = empty_m in
   Alcotest.check compare_t "hello" expected (Mirage_fs_mem.Pure.empty ()) 
 
 let read () =
@@ -55,15 +59,17 @@ let size () =
   Alcotest.check Alcotest.int64 "hello" expected (Mirage_fs_mem.Pure.size map "a")
 
 let create () =
-  let expected = Ok (Map.add "leer" (false, Cstruct.empty) Map.empty) in
-  Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.create Map.empty "leer")
+  let expected = Ok (add "leer" Cstruct.empty empty_m) in
+  Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.create empty_m "leer")
 
 let mkdir () =
-  let expected = Ok (Map.add "leer" (true, Cstruct.empty) Map.empty) in
-  Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.mkdir Map.empty "leer")
+  let expected = Ok { Mirage_fs.filename = "leer" ; read_only = false ; directory = true ; size = 0L } in
+  match Mirage_fs_mem.Pure.mkdir empty_m "leer" with
+   | Ok m -> Alcotest.check compare_stat_res "hello" expected (Mirage_fs_mem.Pure.stat m "leer")
+   | Error _ -> assert false
 
 let destroy () =
-  let expected = Map.empty in
+  let expected = empty_m in
   Alcotest.check compare_t "hello" expected (Mirage_fs_mem.Pure.destroy map "a")
 
 let stat () =
@@ -71,24 +77,24 @@ let stat () =
   Alcotest.check compare_stat_res "hello" expected (Mirage_fs_mem.Pure.stat map "a")
   
 let listdir () =
-  let map_of_three = Map.add "b" (true, Cstruct.empty) (Map.add "c" (false, Cstruct.empty) map) in
+  let map_of_three = add "b" Cstruct.empty (add "c" Cstruct.empty map) in
   let expected = [ "a" ; "b" ; "c" ] in 
   Alcotest.check Alcotest.(slist string String.compare) "hello" expected (Mirage_fs_mem.Pure.listdir map_of_three "")
 
 let write () =
-  let expected = Ok (Map.add "a" (false, bc) Map.empty) in
-  Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write Map.empty "a" 0 bc)
+  let expected = Ok (add "a" bc empty_m) in
+  Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write empty_m "a" 0 bc)
 
 (* value in map is shorter than offset *)
 let writeBigOffset () =
-  let expected = Ok (Map.add "a" (false, Cstruct.of_string "bc        NEU") Map.empty)
+  let expected = Ok (add "a" (Cstruct.of_string "bc        NEU") empty_m)
   in
   Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write map "a" 10 neu)
 
 (* value in map is longer than offset*)
 let writeSmallOffset () =
-  let map = Map.add "a" (false, Cstruct.of_string "gutentag") Map.empty 
-  and expected = Ok (Map.add "a" (false, Cstruct.of_string "gNEUntag") Map.empty)
+  let map = add "a" (Cstruct.of_string "gutentag") empty_m
+  and expected = Ok (add "a" (Cstruct.of_string "gNEUntag") empty_m)
   in
   Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write map "a" 1 neu)
 

@@ -1,7 +1,5 @@
 module Pure : sig
-  module M : Map.S with type key = string
-
-  type t = (bool * Cstruct.t) M.t
+  type t
   val empty : unit -> t
   val read : t -> string -> int -> int -> (Cstruct.t list, Mirage_fs.error) result
   val size : t -> string -> int64
