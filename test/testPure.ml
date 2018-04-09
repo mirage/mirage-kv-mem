@@ -54,6 +54,10 @@ let read () =
   let expected = Ok [ bc ] in
   Alcotest.check compare_read_res "hello" expected (Mirage_fs_mem.Pure.read map "a" 0 2) 
 
+let readWithLength () =
+  let expected = Ok [ bc ] in
+  Alcotest.check compare_read_res "hello" expected (Mirage_fs_mem.Pure.read map "a" 0 50) 
+
 let size () =
   let expected = 2L in 
   Alcotest.check Alcotest.int64 "hello" expected (Mirage_fs_mem.Pure.size map "a")
@@ -101,6 +105,7 @@ let writeSmallOffset () =
 let write_tests = [
   "create empty filesystem", `Quick, empty;
   "reading a file", `Quick, read;
+  "reading a file giving an illegally long length", `Quick, readWithLength;
   "size of file", `Quick, size;
   "create file", `Quick, create;
   "create directory", `Quick, mkdir;
