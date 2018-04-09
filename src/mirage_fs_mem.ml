@@ -1,14 +1,3 @@
-type error = Mirage_fs.error
-let pp_error = Mirage_fs.pp_error 
-
-type write_error = Mirage_fs.write_error
-let pp_write_error = Mirage_fs.pp_write_error 
-
-type +'a io = 'a Lwt.t
-
-let disconnect t = assert false
-type page_aligned_buffer = Cstruct.t
-
 module Pure = struct
 
   module M = Map.Make(String)
@@ -29,9 +18,9 @@ module Pure = struct
       Ok [Cstruct.sub value offset read_length]
   
   let size (t : t) path = match M.find_opt path t with
-   | None -> 0L
-   | Some Directory -> 0L
-   | Some (File value) -> Int64.of_int @@ Cstruct.len value
+   | None -> Error `No_directory_entry
+   | Some Directory -> Error `Is_a_directory
+   | Some (File value) -> Ok (Int64.of_int @@ Cstruct.len value)
 
   let create_file_or_dir entry (t : t) path = match M.find_opt path t with
    | None -> Ok (M.add path entry t)
@@ -44,7 +33,7 @@ module Pure = struct
   let stat (t : t) path = match M.find_opt path t with
    | None -> Error `No_directory_entry
    | Some Directory -> Ok Mirage_fs.{ filename = path ; read_only = false ; directory = true ; size = 0L }
-   | Some (File value) -> Ok Mirage_fs.{ filename = path ; read_only = false ; directory = false ; size = size t path }
+   | Some (File value) -> Ok Mirage_fs.{ filename = path ; read_only = false ; directory = false ; size = Int64.of_int @@ Cstruct.len value }
   
   let listdir (t : t) path = 
     let pl = String.length path in
@@ -89,3 +78,43 @@ module Pure = struct
    | _ , _ -> false ) t t'
 
 end
+
+type error = Mirage_fs.error
+let pp_error = Mirage_fs.pp_error 
+
+type write_error = Mirage_fs.write_error
+let pp_write_error = Mirage_fs.pp_write_error 
+
+type +'a io = 'a Lwt.t
+
+let disconnect t = assert false
+type page_aligned_buffer = Cstruct.t
+
+type t = Pure.t ref
+
+let read m path offset length = Lwt.return @@ Pure.read !m path offset length
+
+let size m path = Lwt.return @@ Pure.size !m path
+
+let create m path = Lwt.return @@ match Pure.create !m path with
+  | Error e -> Error e
+  | Ok m' -> m := m'; Ok ()
+
+let mkdir m path = Lwt.return @@ match Pure.mkdir !m path with
+  | Error e -> Error e
+  | Ok m' -> m := m'; Ok ()
+
+let destroy m path = 
+  let m' = Pure.destroy !m path in
+  m := m';
+  Lwt.return (Ok ())
+
+let stat m path = Lwt.return @@ Pure.stat !m path
+
+let listdir m path = Lwt.return @@ Ok (Pure.listdir !m path)
+
+let write m path offset data = Lwt.return @@ match Pure.write !m path offset data with
+  | Error e -> Error e
+  | Ok m' -> m := m'; Ok ()
+
+ 

@@ -59,8 +59,8 @@ let readWithLength () =
   Alcotest.check compare_read_res "hello" expected (Mirage_fs_mem.Pure.read map "a" 0 50) 
 
 let size () =
-  let expected = 2L in 
-  Alcotest.check Alcotest.int64 "hello" expected (Mirage_fs_mem.Pure.size map "a")
+  let expected = Ok 2L in 
+  Alcotest.check (Alcotest.result Alcotest.int64 e) "hello" expected (Mirage_fs_mem.Pure.size map "a")
 
 let create () =
   let expected = Ok (add "leer" Cstruct.empty empty_m) in
