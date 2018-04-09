@@ -1,0 +1,3 @@
+true: package(mirage-fs-lwt fmt)
+<test/*>: package(alcotest)
+"src": include
