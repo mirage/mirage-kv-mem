@@ -13,40 +13,43 @@ module Pure = struct
 
   module M = Map.Make(String)
 
-  type t = Cstruct.t M.t
+  type t = (bool * Cstruct.t) M.t
 
   let empty () = M.empty
 
   (* TODO bounds check*)
   let read (t : t) path offset length = match M.find_opt path t with
    | None -> Error `No_directory_entry
-   | Some value -> Ok [Cstruct.sub value offset length]
+   | Some (true, value) -> Error `Is_a_directory
+   | Some (false, value) -> Ok [Cstruct.sub value offset length]
   
   let size (t : t) path = match M.find_opt path t with
    | None -> 0L
-   | Some value -> Int64.of_int @@ Cstruct.len value
-  
-  let create (t : t) path = match M.find_opt path t with
-   | None -> Ok (M.add path Cstruct.empty t)
+   | Some (true, value) -> 0L
+   | Some (false, value) -> Int64.of_int @@ Cstruct.len value
+
+  let create_file_or_dir is_dir (t : t) path = match M.find_opt path t with
+   | None -> Ok (M.add path (is_dir, Cstruct.empty) t)
    | Some value -> Error `File_already_exists
-  
-  let mkdir (t : t) path = assert false
+  let create = create_file_or_dir false 
+  let mkdir = create_file_or_dir true
   
   let destroy (t : t) path = M.remove path t
   
-  (* TODO directory = true*)
   let stat (t : t) path = match M.find_opt path t with
    | None -> Error `No_directory_entry
-   | Some value -> Ok Mirage_fs.{ filename = path ; read_only = false ; directory = false ; size = size t path }
+   | Some (is_dir, value) -> Ok Mirage_fs.{ filename = path ; read_only = false ; directory = is_dir ; size = size t path }
   
   let listdir (t : t) path = assert false 
   
   let write (t : t) path offset data = 
-    let v = match M.find_opt path t with
+    match M.find_opt path t with
      | None  -> let buf = Cstruct.create offset in
                 Cstruct.memset buf @@ int_of_char ' ';
-                Cstruct.append buf data
-     | Some value -> 
+                let v = Cstruct.append buf data in
+                Ok (M.add path (false, v) t)
+     | Some (true, value) -> Error `Is_a_directory
+     | Some (false, value) -> 
          let lv = Cstruct.len value
          and ld = Cstruct.len data in
          let end_prefix, begin_suffix = min offset lv, min (offset + ld) lv in
@@ -56,14 +59,13 @@ module Pure = struct
            Cstruct.memset buf @@ int_of_char ' ';
            buf
          in 
-         Cstruct.concat [ prefix ; padding ; data ; suffix ]
-    in
-    M.add path v t
+         let v = Cstruct.concat [ prefix ; padding ; data ; suffix ] in
+         Ok (M.add path (false, v) t)
   
   let pp fmt t =
-    Fmt.(list ~sep:(unit ";") (pair ~sep:(unit ",") string Cstruct.hexdump_pp))
+    Fmt.(list ~sep:(unit ";") (pair ~sep:(unit ",") string (pair ~sep:(unit ",") bool Cstruct.hexdump_pp)))
     fmt @@ M.bindings t
   
-  let equal t t' = M.equal Cstruct.equal t t'
+  let equal t t' = M.equal (fun (is_dir, value) (is_dir', value') -> is_dir = is_dir' && Cstruct.equal value value') t t'
 
 end
