@@ -17,17 +17,27 @@ module Pure = struct
 
   let empty () = M.empty
 
-  let read (t : t) path offset length = assert false
+  (* TODO bounds check*)
+  let read (t : t) path offset length = match M.find_opt path t with
+   | None -> Error `No_directory_entry
+   | Some value -> Ok [Cstruct.sub value offset length]
   
-  let size (t : t) path = assert false
+  let size (t : t) path = match M.find_opt path t with
+   | None -> 0L
+   | Some value -> Int64.of_int @@ Cstruct.len value
   
-  let create (t : t) path = assert false
+  let create (t : t) path = match M.find_opt path t with
+   | None -> Ok (M.add path Cstruct.empty t)
+   | Some value -> Error `File_already_exists
   
   let mkdir (t : t) path = assert false
   
-  let destroy (t : t) path = assert false
+  let destroy (t : t) path = M.remove path t
   
-  let stat (t : t) path = assert false
+  (* TODO directory = true*)
+  let stat (t : t) path = match M.find_opt path t with
+   | None -> Error `No_directory_entry
+   | Some value -> Ok Mirage_fs.{ filename = path ; read_only = false ; directory = false ; size = size t path }
   
   let listdir (t : t) path = assert false 
   
