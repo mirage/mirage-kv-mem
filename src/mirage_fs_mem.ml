@@ -86,9 +86,10 @@ type write_error = Mirage_fs.write_error
 let pp_write_error = Mirage_fs.pp_write_error 
 
 type +'a io = 'a Lwt.t
-
-let disconnect t = assert false
 type page_aligned_buffer = Cstruct.t
+
+let connect s = Lwt.return (ref (Pure.empty ()))
+let disconnect t = Lwt.return ()
 
 type t = Pure.t ref
 
@@ -115,6 +116,4 @@ let listdir m path = Lwt.return @@ Ok (Pure.listdir !m path)
 
 let write m path offset data = Lwt.return @@ match Pure.write !m path offset data with
   | Error e -> Error e
-  | Ok m' -> m := m'; Ok ()
-
- 
+  | Ok m' -> m := m'; Ok () 

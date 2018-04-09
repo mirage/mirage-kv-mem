@@ -14,4 +14,5 @@ module Pure : sig
   val pp : t Fmt.t
 end
 
-include Mirage_fs_lwt.S with type t = Pure.t ref
+include Mirage_fs_lwt.S
+val connect : string -> t Lwt.t
