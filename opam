@@ -14,3 +14,13 @@ build-test: [
   [ "ocaml" "pkg/pkg.ml" "build" "--pinned" "%{pinned}%" "--tests" "true" ]
   [ "ocaml" "pkg/pkg.ml" "test" ]
 ]
+maintainer: [
+  "Stefanie Schirmer @linse"
+]
+authors: [
+  "Stefanie Schirmer @linse"
+  "Hannes Mehnert"
+]
+homepage: "https://github.com/roburio/mirage-fs-mem"
+bug-reports: "https://github.com/roburio/mirage-fs-mem/issues"
+dev-repo: "https://github.com/roburio/mirage-fs-mem.git"
