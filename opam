@@ -1,11 +1,13 @@
 opam-version: "1.2"
-depends: [ 
+depends: [
   "fmt"
   "ocamlfind" {build}
   "ocamlbuild" {build}
   "alcotest" {test}
   "topkg" {build}
   "mirage-fs-lwt"
+  "rresult"
+  "fpath"
 ]
 build: [
   [ "ocaml" "pkg/pkg.ml" "build" "--pinned" "%{pinned}%" "--tests" "false" ]

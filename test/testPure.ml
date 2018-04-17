@@ -2,8 +2,8 @@ let compare_t = let module M = Mirage_fs_mem.Pure in (module M: Alcotest.TESTABL
 
 let we =
   let module M = struct
-    type t = Mirage_fs.write_error
-    let pp = Mirage_fs.pp_write_error
+    type t = Mirage_fs_mem.write_error
+    let pp = Mirage_fs_mem.pp_write_error
     let equal a b = compare a b = 0
   end in
   (module M: Alcotest.TESTABLE with type t = M.t)
@@ -74,7 +74,8 @@ let mkdir () =
 
 let destroy () =
   let expected = empty_m in
-  Alcotest.check compare_t "hello" expected (Mirage_fs_mem.Pure.destroy map "a")
+  Alcotest.check compare_write_res "hello" (Ok expected)
+    (Mirage_fs_mem.Pure.destroy map "a")
 
 let stat () =
   let expected = Ok { Mirage_fs.filename = "a" ; read_only = false ; directory = false ; size = 2L } in
@@ -82,8 +83,10 @@ let stat () =
   
 let listdir () =
   let map_of_three = add "b" Cstruct.empty (add "c" Cstruct.empty map) in
-  let expected = [ "a" ; "b" ; "c" ] in 
-  Alcotest.check Alcotest.(slist string String.compare) "hello" expected (Mirage_fs_mem.Pure.listdir map_of_three "")
+  let expected = Ok [ "a" ; "b" ; "c" ] in 
+  Alcotest.check
+    Alcotest.(result (slist string String.compare) e) "hello"
+    expected (Mirage_fs_mem.Pure.listdir map_of_three "")
 
 let write () =
   let expected = Ok (add "a" bc empty_m) in

@@ -1,6 +1,6 @@
 description = "In memory file system for easy testing. Careful, it's not persistent."
 version = "%%VERSION_NUM%%"
-requires = "fmt mirage-fs-lwt"
+requires = "fmt mirage-fs-lwt rresult fpath"
 archive(byte) = "mirage-fs-mem.cma"
 archive(native) = "mirage-fs-mem.cmxa"
 plugin(byte) = "mirage-fs-mem.cma"
