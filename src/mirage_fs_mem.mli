@@ -20,3 +20,4 @@ include Mirage_fs_lwt.S
   with type write_error := write_error
 
 val connect : string -> t Lwt.t
+val pp : t Fmt.t

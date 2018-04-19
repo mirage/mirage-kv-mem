@@ -16,9 +16,10 @@ module Pure = struct
 
   let empty () = Directory M.empty
 
-  let get_segs = function
+  let get_segs p =
+    let p' = Astring.String.trim ~drop:(function '/' -> true | _ -> false) p in
+    match p' with
     | "" -> []
-    | "/" -> []
     | path -> Fpath.(segs (v path))
 
   let find_file_or_directory t path =
@@ -128,10 +129,9 @@ module Pure = struct
       add_file_or_directory t path (File v)
 
   let rec pp fmt = function
-    | File v -> Fmt.pf fmt "File %a" Cstruct.hexdump_pp v
+    | File v -> Fmt.pf fmt "File %d" (Cstruct.len v)
     | Directory m ->
-      Fmt.pf fmt "Directory %a"
-        Fmt.(list ~sep:(unit ";") (pair ~sep:(unit ",") string pp)) @@ M.bindings m
+        Fmt.(list ~sep:(unit "@.") (pair ~sep:(unit " -> ") string (vbox ~indent:4 pp))) fmt @@ M.bindings m
 
   let rec equal t t' = match t, t' with
     | File v, File v' -> Cstruct.equal v v'
@@ -174,3 +174,5 @@ let listdir m path = Lwt.return @@ Pure.listdir !m path
 let write m path offset data = Lwt.return @@ match Pure.write !m path offset data with
   | Error e -> Error e
   | Ok m' -> m := m'; Ok () 
+
+let pp fmt m = Pure.pp fmt !m

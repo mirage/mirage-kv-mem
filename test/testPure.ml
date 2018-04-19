@@ -72,6 +72,21 @@ let mkdir () =
    | Ok m -> Alcotest.check compare_stat_res "hello" expected (Mirage_fs_mem.Pure.stat m "leer")
    | Error _ -> assert false
 
+let mkdirWithSlash () =
+  let failOnError = function
+   | Error _ -> assert false
+   | Ok m -> m in
+  let expected_subdir = Ok { Mirage_fs.filename = "__uids__/10000000-0000-0000-0000-000000000001/" ; read_only = false ; directory = true ; size = 0L } in
+  let expected_dir = Ok { Mirage_fs.filename = "__uids__/" ; read_only = false ; directory = true ; size = 0L } in
+  let m = failOnError @@ Mirage_fs_mem.Pure.mkdir empty_m "" in
+  let m = failOnError @@ Mirage_fs_mem.Pure.write m ".prop.xml" 0 (Cstruct.create 22) in
+  let m = failOnError @@ Mirage_fs_mem.Pure.mkdir m "__uids__" in
+  let m = failOnError @@ Mirage_fs_mem.Pure.write m "__uids__/.prop.xml" 0 (Cstruct.create 22) in
+  let m = failOnError @@ Mirage_fs_mem.Pure.mkdir m "__uids__/10000000-0000-0000-0000-000000000001" in
+  let m = failOnError @@ Mirage_fs_mem.Pure.write m "__uids__/10000000-0000-0000-0000-000000000001/.prop.xml" 0 (Cstruct.create 22) in
+  Alcotest.check compare_stat_res "hello" expected_subdir (Mirage_fs_mem.Pure.stat m "__uids__/10000000-0000-0000-0000-000000000001/");
+  Alcotest.check compare_stat_res "hello" expected_dir (Mirage_fs_mem.Pure.stat m "__uids__/")
+
 let destroy () =
   let expected = empty_m in
   Alcotest.check compare_write_res "hello" (Ok expected)
@@ -112,6 +127,7 @@ let write_tests = [
   "size of file", `Quick, size;
   "create file", `Quick, create;
   "create directory", `Quick, mkdir;
+  "create directory with slash inside", `Quick, mkdirWithSlash;
   "remove file", `Quick, destroy;
   "get stat of file", `Quick, stat;
   "list a directory", `Quick, listdir;
