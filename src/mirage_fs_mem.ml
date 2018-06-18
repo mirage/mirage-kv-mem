@@ -128,10 +128,15 @@ module Pure = struct
       let v = Cstruct.concat [ prefix ; padding ; data ; suffix ] in
       add_file_or_directory t path (File v)
 
-  let rec pp fmt = function
-    | File v -> Fmt.pf fmt "File %d" (Cstruct.len v)
-    | Directory m ->
-        Fmt.(list ~sep:(unit "@.") (pair ~sep:(unit " -> ") string (vbox ~indent:4 pp))) fmt @@ M.bindings m
+  let pp fmt t =
+    let rec pp_things ?(prefix = "") () fmt = function
+      | File v -> Fmt.pf fmt "File %s %d@." prefix (Cstruct.len v)
+      | Directory m ->
+        List.iter (fun (k, v) ->
+            pp_things ~prefix:(prefix ^ "/" ^ k) () fmt v)
+          (M.bindings m)
+    in
+    pp_things () fmt t
 
   let rec equal t t' = match t, t' with
     | File v, File v' -> Cstruct.equal v v'
