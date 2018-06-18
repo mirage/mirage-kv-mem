@@ -21,3 +21,5 @@ include Mirage_fs_lwt.S
 
 val connect : string -> t Lwt.t
 val pp : t Fmt.t
+
+val equal : t -> t -> bool

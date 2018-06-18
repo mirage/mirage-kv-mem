@@ -176,3 +176,5 @@ let write m path offset data = Lwt.return @@ match Pure.write !m path offset dat
   | Ok m' -> m := m'; Ok () 
 
 let pp fmt m = Pure.pp fmt !m
+
+let equal a b = Pure.equal !a !b
