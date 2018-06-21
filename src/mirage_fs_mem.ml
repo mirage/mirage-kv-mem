@@ -130,7 +130,7 @@ module Pure = struct
 
   let pp fmt t =
     let rec pp_things ?(prefix = "") () fmt = function
-      | File v -> Fmt.pf fmt "File %s %d@." prefix (Cstruct.len v)
+      | File v -> Fmt.pf fmt "File %s %d: %s@." prefix (Cstruct.len v) (Cstruct.to_string v)
       | Directory m ->
         List.iter (fun (k, v) ->
             pp_things ~prefix:(prefix ^ "/" ^ k) () fmt v)
