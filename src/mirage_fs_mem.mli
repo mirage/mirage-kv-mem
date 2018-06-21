@@ -1,4 +1,5 @@
 type write_error = [ Mirage_fs.write_error | `Directory_not_empty ]
+type error = Mirage_fs.error
 
 module Pure : sig
   type t
@@ -18,7 +19,7 @@ end
 
 include Mirage_fs_lwt.S
   with type write_error := write_error
-   and type error := Mirage_fs.error
+   and type error := error
 
 val connect : string -> t Lwt.t
 val pp : t Fmt.t
