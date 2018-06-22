@@ -107,6 +107,12 @@ let write () =
   let expected = Ok (add "a" bc empty_m) in
   Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write empty_m "a" 0 bc)
 
+let write_multiple () =
+  let expected = Ok (add "a" bc (add "b" bc empty_m)) in
+  match Mirage_fs_mem.Pure.write empty_m "b" 0 bc with
+  | Ok m -> Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write m "a" 0 bc)
+  | Error _ -> Alcotest.fail "Unexpected map write result"
+
 (* value in map is shorter than offset *)
 let writeBigOffset () =
   let expected = Ok (add "a" (Cstruct.of_string "bc        NEU") empty_m)
@@ -132,6 +138,7 @@ let write_tests = [
   "get stat of file", `Quick, stat;
   "list a directory", `Quick, listdir;
   "writing a file", `Quick, write;
+  "writing multiple files", `Quick, write_multiple;
   "writing a file with big offset", `Quick, writeBigOffset;
   "writing a file with small offset", `Quick, writeSmallOffset;
 ]
