@@ -19,7 +19,7 @@ module Pure = struct
   let get_segs p =
     let p' = Astring.String.trim ~drop:(function '/' -> true | _ -> false) p in
     match p' with
-    | "" -> []
+    | "" -> [] (* this represents /, the root of the file system *)
     | path -> Fpath.(segs (v path))
 
   let find_file_or_directory t path =
@@ -35,20 +35,32 @@ module Pure = struct
     in
     find t segs
 
-  let add_file_or_directory t path value =
+  let add_file_or_directory ?(overwrite = false) t path value =
     let segs = get_segs path in
-    let rec add t = function
+    let rec add t' = function
       | [] -> Ok value
-      | hd::tl -> match t with
-        | File _ -> Error `Not_a_directory
-        | Directory m ->
-          let node = match M.find_opt hd m with
-            | None -> empty ()
-            | Some t' -> t'
-          in
-          add node tl >>| fun t'' ->
-          let m' = M.add hd t'' m in
-          Directory m'
+      | [x] ->
+        begin match t' with
+          | File _ -> Error `Not_a_directory
+          | Directory m ->
+            (match M.find_opt x m with
+             | None -> Ok (M.add x value m)
+             | Some _ when overwrite -> Ok (M.add x value m)
+             | Some _ -> Error `File_already_exists) >>= fun m' ->
+            Ok (Directory m')
+        end
+      | hd::tl ->
+        begin
+          match t' with
+          | File _ -> Error `Not_a_directory
+          | Directory m ->
+            (match M.find_opt hd m with
+              | None -> Error `No_directory_entry
+              | Some t'' -> Ok t'') >>= fun node ->
+            add node tl >>= fun t''' ->
+            let m' = M.add hd t''' m in
+            Ok (Directory m')
+        end
     in
     add t segs
 
@@ -126,7 +138,7 @@ module Pure = struct
         buf
       in
       let v = Cstruct.concat [ prefix ; padding ; data ; suffix ] in
-      add_file_or_directory t path (File v)
+      add_file_or_directory ~overwrite:true t path (File v)
 
   let pp fmt t =
     let rec pp_things ?(prefix = "") () fmt = function

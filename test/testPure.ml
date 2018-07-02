@@ -144,6 +144,22 @@ let create_multiple_directories () =
             Alcotest.(result (slist string String.compare) e) __LOC__
             expected (Mirage_fs_mem.Pure.listdir m''' "b")
 
+let create_multiple_directories_and_root () =
+  match Mirage_fs_mem.Pure.mkdir empty_m "b" with
+  | Error _ -> Alcotest.fail "Unexpected mkdir result"
+  | Ok m ->
+    match Mirage_fs_mem.Pure.mkdir m "b/c" with
+    | Error _ -> Alcotest.fail "Unexpected mkdir result"
+    | Ok m' ->
+      match Mirage_fs_mem.Pure.mkdir m' "b/d" with
+      | Error _ -> Alcotest.fail "Unexpected mkdir result"
+      | Ok m'' ->
+        match Mirage_fs_mem.Pure.mkdir m'' "b" with
+        | Error e ->
+          Alcotest.check we __LOC__ `File_already_exists e
+        | Ok m''' ->
+          Alcotest.fail "expected error"
+
 let write_tests = [
   "create empty filesystem", `Quick, empty;
   "reading a file", `Quick, read;
@@ -160,6 +176,7 @@ let write_tests = [
   "writing a file with big offset", `Quick, writeBigOffset;
   "writing a file with small offset", `Quick, writeSmallOffset;
   "mkdir twice", `Quick, create_multiple_directories ;
+  "create multiple directories and root again", `Quick, create_multiple_directories_and_root ;
 ]
 
 let tests = [
