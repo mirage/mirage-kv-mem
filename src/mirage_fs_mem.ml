@@ -46,8 +46,8 @@ module Pure = struct
             | None -> empty ()
             | Some t' -> t'
           in
-          add node tl >>| fun t' ->
-          let m' = M.add hd t' m in
+          add node tl >>| fun t'' ->
+          let m' = M.add hd t'' m in
           Directory m'
     in
     add t segs

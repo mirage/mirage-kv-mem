@@ -126,6 +126,24 @@ let writeSmallOffset () =
   in
   Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write map "a" 1 neu)
 
+let create_multiple_directories () =
+  match Mirage_fs_mem.Pure.mkdir empty_m "b" with
+  | Error _ -> Alcotest.fail "Unexpected mkdir result"
+  | Ok m ->
+    match Mirage_fs_mem.Pure.mkdir m "b/c" with
+    | Error _ -> Alcotest.fail "Unexpected mkdir result"
+    | Ok m' ->
+      match Mirage_fs_mem.Pure.mkdir m' "b/d" with
+      | Error _ -> Alcotest.fail "Unexpected mkdir result"
+      | Ok m'' ->
+        match Mirage_fs_mem.Pure.mkdir m'' "b/e" with
+        | Error _ -> Alcotest.fail "Unexpected mkdir result"
+        | Ok m''' ->
+          let expected = Ok [ "c" ; "d" ; "e" ] in
+          Alcotest.check
+            Alcotest.(result (slist string String.compare) e) __LOC__
+            expected (Mirage_fs_mem.Pure.listdir m''' "b")
+
 let write_tests = [
   "create empty filesystem", `Quick, empty;
   "reading a file", `Quick, read;
@@ -141,6 +159,7 @@ let write_tests = [
   "writing multiple files", `Quick, write_multiple;
   "writing a file with big offset", `Quick, writeBigOffset;
   "writing a file with small offset", `Quick, writeSmallOffset;
+  "mkdir twice", `Quick, create_multiple_directories ;
 ]
 
 let tests = [
