@@ -119,26 +119,14 @@ module Pure = struct
     | Directory m -> Ok (fst @@ List.split @@ M.bindings m)
 
   let write (t : t) path offset data =
-    match find_file_or_directory t path with
-    | Error `No_directory_entry ->
-      let buf = Cstruct.create offset in
-      Cstruct.memset buf @@ int_of_char ' ';
-      let v = Cstruct.append buf data in
-      add_file_or_directory t path (File v)
-    | Error e -> Error e
-    | Ok (Directory _) -> Error `Is_a_directory
-    | Ok (File value) ->
-      let lv = Cstruct.len value
-      and ld = Cstruct.len data in
-      let end_prefix, begin_suffix = min offset lv, min (offset + ld) lv in
-      let prefix, suffix = Cstruct.sub value 0 end_prefix, Cstruct.sub value begin_suffix (lv - begin_suffix) 
-      and padding =
-        let buf = Cstruct.create (max 0 (offset - lv)) in
-        Cstruct.memset buf @@ int_of_char ' ';
-        buf
-      in
-      let v = Cstruct.concat [ prefix ; padding ; data ; suffix ] in
-      add_file_or_directory ~overwrite:true t path (File v)
+    if offset <> 0
+    then Error `No_space
+    else
+      match find_file_or_directory t path with
+      | Error `No_directory_entry -> add_file_or_directory t path (File data)
+      | Error e -> Error e
+      | Ok (Directory _) -> Error `Is_a_directory
+      | Ok (File _) -> add_file_or_directory ~overwrite:true t path (File data)
 
   let pp fmt t =
     let rec pp_things ?(prefix = "") () fmt = function

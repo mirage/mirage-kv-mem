@@ -113,18 +113,17 @@ let write_multiple () =
   | Ok m -> Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write m "a" 0 bc)
   | Error _ -> Alcotest.fail "Unexpected map write result"
 
-(* value in map is shorter than offset *)
-let writeBigOffset () =
-  let expected = Ok (add "a" (Cstruct.of_string "bc        NEU") empty_m)
+let writeOffset () =
+  let expected = Error `No_space
   in
-  Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write map "a" 10 neu)
+  Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write map "a" 10 bc)
 
-(* value in map is longer than offset*)
-let writeSmallOffset () =
-  let map = add "a" (Cstruct.of_string "gutentag") empty_m
-  and expected = Ok (add "a" (Cstruct.of_string "gNEUntag") empty_m)
+let overwrite () =
+  let map = add "a" (Cstruct.of_string "gutentag1234") empty_m
+  and expected = Ok (add "a" (Cstruct.of_string "foo") empty_m)
   in
-  Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.write map "a" 1 neu)
+  Alcotest.check compare_write_res "hello" expected
+    (Mirage_fs_mem.Pure.write map "a" 0 (Cstruct.of_string "foo"))
 
 let create_multiple_directories () =
   match Mirage_fs_mem.Pure.mkdir empty_m "b" with
@@ -173,8 +172,8 @@ let write_tests = [
   "list a directory", `Quick, listdir;
   "writing a file", `Quick, write;
   "writing multiple files", `Quick, write_multiple;
-  "writing a file with big offset", `Quick, writeBigOffset;
-  "writing a file with small offset", `Quick, writeSmallOffset;
+  "writing a file with offset", `Quick, writeOffset;
+  "overwrite a file", `Quick, overwrite;
   "mkdir twice", `Quick, create_multiple_directories ;
   "create multiple directories and root again", `Quick, create_multiple_directories_and_root ;
 ]
