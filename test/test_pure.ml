@@ -156,7 +156,7 @@ let create_multiple_directories_and_root () =
         match Mirage_fs_mem.Pure.mkdir m'' "b" with
         | Error e ->
           Alcotest.check we __LOC__ `File_already_exists e
-        | Ok m''' ->
+        | Ok _m''' ->
           Alcotest.fail "expected error"
 
 let write_tests = [

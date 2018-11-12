@@ -27,7 +27,7 @@ module Pure = struct
     let rec find t = function
       | [] -> Ok t
       | hd::tl -> match t with
-        | File xs -> Error `Not_a_directory
+        | File _xs -> Error `Not_a_directory
         | Directory m ->
           match M.find_opt hd m with
           | Some t' -> find t' tl
@@ -151,8 +151,8 @@ let pp_error = Mirage_fs.pp_error
 type +'a io = 'a Lwt.t
 type page_aligned_buffer = Cstruct.t
 
-let connect s = Lwt.return (ref (Pure.empty ()))
-let disconnect t = Lwt.return ()
+let connect _s = Lwt.return (ref (Pure.empty ()))
+let disconnect _t = Lwt.return ()
 
 type t = Pure.t ref
 
