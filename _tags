@@ -1,3 +1,0 @@
-true: package(mirage-fs-lwt fmt rresult fpath)
-<test/*>: package(alcotest)
-"src": include
