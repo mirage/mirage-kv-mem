@@ -114,7 +114,12 @@ module Make (CLOCK : Mirage_clock.PCLOCK) = struct
   type value = string
   type key = Mirage_kv.Key.t
 
+  [@@@warning "-34"]
+  type nonrec error = error
   let pp_error = pp_error
+
+  [@@@warning "-34"]
+  type nonrec write_error = write_error
   let pp_write_error = pp_write_error
 
   let now () = Ptime.v (CLOCK.now_d_ps ())

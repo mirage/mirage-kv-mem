@@ -20,6 +20,9 @@ module Pure : sig
 end
 
 module Make (Clock : Mirage_clock.PCLOCK) : sig
+  type nonrec error = error
+  type nonrec write_error = write_error
+
   include Mirage_kv_lwt.RW
     with type write_error := write_error
      and type error := error
