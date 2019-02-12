@@ -117,12 +117,18 @@ type key = Mirage_kv.Key.t
 let last_modified _ _ = assert false
 let digest _ _ = assert false
 let batch _ ?retries:_ _ = assert false
-let exists _ _ = assert false
 
 let connect _s = Lwt.return (ref (Pure.empty ()))
 let disconnect _t = Lwt.return ()
 
 type t = Pure.t ref
+
+let exists m key = Lwt.return @@
+  match Pure.find_file_or_directory !m key with
+  | Ok (File _) -> Ok (Some `Value)
+  | Ok (Directory _) -> Ok (Some `Dictionary)
+  | Error (`Not_found _) -> Ok None
+  | Error e -> Error e
 
 let get m path = Lwt.return @@ Pure.get !m path
 
