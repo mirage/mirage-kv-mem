@@ -124,7 +124,7 @@ module Make (CLOCK : Mirage_clock.PCLOCK) = struct
 
   let now () = Ptime.v (CLOCK.now_d_ps ())
 
-  let connect _s = Lwt.return (ref (Pure.empty (now ()) ()))
+  let connect () = Lwt.return (ref (Pure.empty (now ()) ()))
   let disconnect _t = Lwt.return ()
 
   type t = Pure.t ref

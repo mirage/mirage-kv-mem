@@ -27,7 +27,7 @@ module Make (Clock : Mirage_clock.PCLOCK) : sig
     with type write_error := write_error
      and type error := error
 
-  val connect : string -> t Lwt.t
+  val connect : unit -> t Lwt.t
   val pp : t Fmt.t
   val equal : t -> t -> bool
 end
