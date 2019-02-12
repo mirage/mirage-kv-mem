@@ -1,4 +1,4 @@
 (library
   (name mirage_fs_mem)
   (public_name mirage-fs-mem)
-  (libraries mirage-kv-lwt rresult fmt))
+  (libraries mirage-kv-lwt rresult fmt ptime mirage-clock))

@@ -19,12 +19,15 @@ let e =
 
 let compare_read_res = Alcotest.result Alcotest.string e
 
+let now = Ptime.epoch
+
 let bc = "bc"
 let neu = "NEU"
-let add k v m = match Mirage_fs_mem.Pure.set m k v with
+let add k v m = match Mirage_fs_mem.Pure.set m k now v with
  | Error _ -> assert false
  | Ok m -> m
-let empty_m = Mirage_fs_mem.Pure.empty ()
+
+let empty_m = Mirage_fs_mem.Pure.empty now ()
 
 let key_a = Mirage_kv.Key.v "a"
 
@@ -32,7 +35,7 @@ let map = add key_a bc empty_m
 
 let empty () =
   let expected = empty_m in
-  Alcotest.check compare_t "hello" expected (Mirage_fs_mem.Pure.empty ())
+  Alcotest.check compare_t "hello" expected (Mirage_fs_mem.Pure.empty now ())
 
 let read () =
   let expected = Ok bc in
@@ -41,7 +44,7 @@ let read () =
 let destroy () =
   let expected = empty_m in
   Alcotest.check compare_write_res "hello" (Ok expected)
-    (Mirage_fs_mem.Pure.remove map key_a)
+    (Mirage_fs_mem.Pure.remove map key_a now)
 
 type node = [ `Value | `Dictionary ] [@@deriving eq, show]
 
@@ -54,13 +57,14 @@ let list () =
 
 let write () =
   let expected = Ok (add key_a bc empty_m) in
-  Alcotest.check compare_write_res "hello" expected (Mirage_fs_mem.Pure.set empty_m key_a bc)
+  Alcotest.check compare_write_res "hello" expected
+    (Mirage_fs_mem.Pure.set empty_m key_a now bc)
 
 let write_multiple () =
   let expected = Ok (add key_a bc (add (Mirage_kv.Key.v "b") bc empty_m)) in
-  match Mirage_fs_mem.Pure.set empty_m (Mirage_kv.Key.v "b") bc with
+  match Mirage_fs_mem.Pure.set empty_m (Mirage_kv.Key.v "b") now bc with
   | Ok m -> Alcotest.check compare_write_res "hello" expected
-              (Mirage_fs_mem.Pure.set m key_a bc)
+              (Mirage_fs_mem.Pure.set m key_a now bc)
   | Error _ -> Alcotest.fail "Unexpected map write result"
 
 let write_tests = [
