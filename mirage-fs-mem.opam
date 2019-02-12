@@ -23,9 +23,9 @@ depends: [
   "ocaml" {>= "4.05.0"}
   "dune" {build}
   "alcotest" {with-test}
-  "mirage-fs-lwt"
+  "ppx_deriving" {with-test}
+  "mirage-kv-lwt"
   "rresult"
-  "fpath"
   "fmt"
 ]
 

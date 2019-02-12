@@ -75,13 +75,12 @@ module Pure = struct
     in
     remove t (Mirage_kv.Key.segments key)
 
-  (* TODO bounds check*)
-  let read (t : t) key =
+  let get (t : t) key =
     find_file_or_directory t key >>= function
     | Directory _ -> Error (`Value_expected key)
     | File value -> Ok value
 
-  let destroy (t : t) path = remove_file_or_directory t path
+  let remove (t : t) path = remove_file_or_directory t path
 
   let list (t : t) key =
     find_file_or_directory t key >>= function
@@ -109,7 +108,7 @@ module Pure = struct
 end
 
 type error = Mirage_kv.error
-let pp_error = Mirage_kv.pp_error 
+let pp_error = Mirage_kv.pp_error
 
 type +'a io = 'a Lwt.t
 type value = string
@@ -125,9 +124,9 @@ let disconnect _t = Lwt.return ()
 
 type t = Pure.t ref
 
-let get m path = Lwt.return @@ Pure.read !m path
+let get m path = Lwt.return @@ Pure.get !m path
 
-let remove m path = Lwt.return @@ match Pure.destroy !m path with
+let remove m path = Lwt.return @@ match Pure.remove !m path with
   | Error e -> Error e
   | Ok m' -> m := m'; Ok ()
 

@@ -2,5 +2,6 @@
  (name      test_pure)
  (modules   test_pure)
  (libraries alcotest mirage-fs-mem)
+ (preprocess (pps ppx_deriving.std))
  (package   mirage-fs-mem)
 )

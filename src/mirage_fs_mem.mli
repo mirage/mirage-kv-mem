@@ -5,8 +5,8 @@ module Pure : sig
   type t
   type key = Mirage_kv.Key.t
   val empty : unit -> t
-  val read : t -> key -> (string, error) result
-  val destroy : t -> key -> (t, write_error) result
+  val get : t -> key -> (string, error) result
+  val remove : t -> key -> (t, write_error) result
   val list : t -> key -> ((string * [`Value | `Dictionary]) list, error) result
 
   val set : t -> key -> string -> (t, write_error) result
