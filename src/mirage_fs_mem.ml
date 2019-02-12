@@ -112,14 +112,28 @@ type +'a io = 'a Lwt.t
 type value = string
 type key = Mirage_kv.Key.t
 
-let last_modified _ _ = assert false
-let digest _ _ = assert false
-let batch _ ?retries:_ _ = assert false
-
 let connect _s = Lwt.return (ref (Pure.empty ()))
 let disconnect _t = Lwt.return ()
 
 type t = Pure.t ref
+
+let last_modified _ _ = assert false
+
+let digest m key = Lwt.return @@
+  match Pure.get !m key with
+  | Ok data -> Ok (Digest.string data)
+  | Error (`Value_expected _) ->
+    begin match Pure.list !m key with
+      | Ok entries ->
+        let entry_to_string (name, kind) =
+          name ^ match kind with `Value -> "value" | `Dictionary -> "dictionary" in
+        Ok (Digest.string (String.concat ";" (List.map entry_to_string entries)))
+      | Error e -> Error e
+    end
+  | Error e -> Error e
+
+let batch m ?retries:_ f = f m
+(* //cc samoht is this correct for in-memory store behaviour? *)
 
 let exists m key = Lwt.return @@
   match Pure.find_file_or_directory !m key with
