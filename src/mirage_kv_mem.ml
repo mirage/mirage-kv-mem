@@ -18,7 +18,7 @@ module Pure = struct
 
   let empty now () = Dictionary (now, M.empty)
 
-  let find_file_or_directory t key =
+  let get_node t key =
     let rec find t = function
       | [] -> Ok t
       | hd::tl -> match t with
@@ -31,12 +31,12 @@ module Pure = struct
     find t (Mirage_kv.Key.segments key)
 
   let get t key =
-    find_file_or_directory t key >>= function
+    get_node t key >>= function
     | Dictionary _ -> Error (`Value_expected key)
     | Value (_, value) -> Ok value
 
   let last_modified t key =
-    find_file_or_directory t key >>= function
+    get_node t key >>= function
     | Dictionary (mtime, _) -> Ok mtime
     | Value (mtime, _) -> Ok mtime
 
@@ -62,9 +62,13 @@ module Pure = struct
     remove t (Mirage_kv.Key.segments key)
 
   let list t key =
-    find_file_or_directory t key >>= function
+    get_node t key >>= function
     | Value _ -> Error (`Dictionary_expected key)
-    | Dictionary (_, m) -> Ok (List.map (fun (key, value) -> key, match value with Value _ -> `Value | Dictionary _ -> `Dictionary) @@ M.bindings m)
+    | Dictionary (_, m) ->
+      let name_and_kind (k, v) =
+        k, match v with Value _ -> `Value | Dictionary _ -> `Dictionary
+      in
+      Ok (List.map name_and_kind @@ M.bindings m)
 
   let set t key now data =
     let value = Value (now, data) in
@@ -129,47 +133,42 @@ module Make (CLOCK : Mirage_clock.PCLOCK) = struct
 
   type t = Pure.t ref
 
-  let last_modified m key =
-    Lwt.return @@ match Pure.last_modified !m key with
+  let last_modified dict key =
+    Lwt.return @@ match Pure.last_modified !dict key with
     | Ok mtime -> Ok Ptime.(Span.to_d_ps (to_span mtime))
     | Error e -> Error e
 
-  let digest m key = Lwt.return @@
-    match Pure.get !m key with
-    | Ok data -> Ok (Digest.string data)
-    | Error (`Value_expected _) ->
-      begin match Pure.list !m key with
-        | Ok entries ->
-          let entry_to_string (name, kind) =
-            name ^ match kind with `Value -> "value" | `Dictionary -> "dictionary" in
-          Ok (Digest.string (String.concat ";" (List.map entry_to_string entries)))
-        | Error e -> Error e
-      end
+  let digest dict key =
+    Lwt.return @@ match Pure.get_node !dict key with
+    | Ok (Value (_, data)) -> Ok (Digest.string data)
+    | Ok (Dictionary (mtime, dict)) ->
+      let data = Fmt.to_to_string Pure.pp (Dictionary (mtime, dict)) in
+      Ok (Digest.string data)
     | Error e -> Error e
 
-  let batch m ?retries:_ f = f m
+  let batch dict ?retries:_ f = f dict
   (* //cc samoht is this correct for in-memory store behaviour? *)
 
-  let exists m key = Lwt.return @@
-    match Pure.find_file_or_directory !m key with
+  let exists dict key =
+    Lwt.return @@ match Pure.get_node !dict key with
     | Ok (Value _) -> Ok (Some `Value)
     | Ok (Dictionary _) -> Ok (Some `Dictionary)
     | Error (`Not_found _) -> Ok None
     | Error e -> Error e
 
-  let get m path = Lwt.return @@ Pure.get !m path
+  let get dict key = Lwt.return @@ Pure.get !dict key
 
-  let remove m path = Lwt.return @@ match Pure.remove !m path (now ()) with
+  let remove dict key = Lwt.return @@ match Pure.remove !dict key (now ()) with
     | Error e -> Error e
-    | Ok m' -> m := m'; Ok ()
+    | Ok dict' -> dict := dict'; Ok ()
 
-  let list m path = Lwt.return @@ Pure.list !m path
+  let list dict key = Lwt.return @@ Pure.list !dict key
 
-  let set m path data = Lwt.return @@ match Pure.set !m path (now ()) data with
+  let set dict key data = Lwt.return @@ match Pure.set !dict key (now ()) data with
     | Error e -> Error e
-    | Ok m' -> m := m'; Ok ()
+    | Ok dict' -> dict := dict'; Ok ()
 
-  let pp fmt m = Pure.pp fmt !m
+  let pp fmt dict = Pure.pp fmt !dict
 
   let equal a b = Pure.equal !a !b
 end

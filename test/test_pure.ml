@@ -1,4 +1,8 @@
-let compare_t = let module M = Mirage_kv_mem.Pure in (module M: Alcotest.TESTABLE with type t = Mirage_kv_mem.Pure.t)
+
+module Pure = Mirage_kv_mem.Pure
+
+let compare_t =
+  let module M = Pure in (module M: Alcotest.TESTABLE with type t = Pure.t)
 
 let we =
   let module M = struct
@@ -23,63 +27,65 @@ let now = Ptime.epoch
 
 let bc = "bc"
 let neu = "NEU"
-let add k v m = match Mirage_kv_mem.Pure.set m k now v with
+let add k v m = match Pure.set m k now v with
  | Error _ -> assert false
  | Ok m -> m
 
-let empty_m = Mirage_kv_mem.Pure.empty now ()
+let empty_m = Pure.empty now ()
 
-let key_a = Mirage_kv.Key.v "a"
+let key_of_str = Mirage_kv.Key.v
+
+let key_a = key_of_str "a"
 
 let map = add key_a bc empty_m
 
 let empty () =
   let expected = empty_m in
-  Alcotest.check compare_t "hello" expected (Mirage_kv_mem.Pure.empty now ())
+  Alcotest.check compare_t "hello" expected (Pure.empty now ())
 
 let read () =
   let expected = Ok bc in
-  Alcotest.check compare_read_res "hello" expected (Mirage_kv_mem.Pure.get map key_a)
+  Alcotest.check compare_read_res "hello" expected (Pure.get map key_a)
 
 let destroy () =
   let expected = empty_m in
   Alcotest.check compare_write_res "hello" (Ok expected)
-    (Mirage_kv_mem.Pure.remove map key_a now)
+    (Pure.remove map key_a now)
 
 type node = [ `Value | `Dictionary ] [@@deriving eq, show]
 
 let list () =
-  let map_of_three = add (Mirage_kv.Key.v "b") "" (add (Mirage_kv.Key.v "c") "" map) in
+  let map_of_three = add (key_of_str "b") "" (add (key_of_str "c") "" map) in
   let expected = Ok [ ("a", `Value) ; ("b", `Value) ; ("c", `Value) ] in
   Alcotest.check
-    Alcotest.(result (slist (pair string (testable pp_node equal_node)) compare) e) "hello"
-    expected (Mirage_kv_mem.Pure.list map_of_three Mirage_kv.Key.empty)
+    Alcotest.(result (slist (pair string (testable pp_node equal_node)) compare) e)
+    "hello" expected (Pure.list map_of_three Mirage_kv.Key.empty)
 
 let write () =
   let expected = Ok (add key_a bc empty_m) in
   Alcotest.check compare_write_res "hello" expected
-    (Mirage_kv_mem.Pure.set empty_m key_a now bc)
+    (Pure.set empty_m key_a now bc)
 
 let write_multiple () =
-  let expected = Ok (add key_a bc (add (Mirage_kv.Key.v "b") bc empty_m)) in
-  match Mirage_kv_mem.Pure.set empty_m (Mirage_kv.Key.v "b") now bc with
+  let expected = Ok (add key_a bc (add (key_of_str "b") bc empty_m)) in
+  match Pure.set empty_m (key_of_str "b") now bc with
   | Ok m -> Alcotest.check compare_write_res "hello" expected
-              (Mirage_kv_mem.Pure.set m key_a now bc)
+              (Pure.set m key_a now bc)
   | Error _ -> Alcotest.fail "Unexpected map write result"
 
-let write_tests = [
-  "create empty filesystem", `Quick, empty;
-  "reading a file", `Quick, read;
-  "remove file", `Quick, destroy;
-  "list a directory", `Quick, list;
-  "writing a file", `Quick, write;
-  "writing multiple files", `Quick, write_multiple;
+let tests = [
+  "create empty key value store", `Quick, empty;
+  "reading a value", `Quick, read;
+  "remove value", `Quick, destroy;
+  "list entries for dictionary", `Quick, list;
+  "writing a value", `Quick, write;
+  "writing multiple values", `Quick, write_multiple;
 ]
 
 let tests = [
-  "Write", write_tests;
+  "tests", tests;
 ]
 
 let () =
   Printexc.record_backtrace true;
-  Alcotest.run "Mirage-FS-Mem test" tests
+  Alcotest.run "mirage-kv-mem test" tests
