@@ -1,8 +1,6 @@
-type write_error = [ Mirage_kv.write_error | `Directory_not_empty ]
+type write_error = Mirage_kv.write_error
 
-let pp_write_error ppf = function
-  | #Mirage_kv.write_error as e -> Mirage_kv.pp_write_error ppf e
-  | `Directory_not_empty -> Fmt.string ppf "directory not empty"
+let pp_write_error = Mirage_kv.pp_write_error
 
 module Pure = struct
 
@@ -11,19 +9,19 @@ module Pure = struct
   module M = Map.Make(String)
 
   type t =
-   | Directory of t M.t
-   | File of string
+   | Dictionary of t M.t
+   | Value of string
 
   type key = Mirage_kv.Key.t
 
-  let empty () = Directory M.empty
+  let empty () = Dictionary M.empty
 
   let find_file_or_directory t key =
     let rec find t = function
       | [] -> Ok t
       | hd::tl -> match t with
-        | File _xs -> Error (`Dictionary_expected key)
-        | Directory m ->
+        | Value _xs -> Error (`Dictionary_expected key)
+        | Dictionary m ->
           match M.find_opt hd m with
           | Some t' -> find t' tl
           | None -> Error (`Not_found key)
@@ -35,65 +33,65 @@ module Pure = struct
       | [] -> Ok value
       | [x] ->
         begin match t' with
-          | File _ -> Error (`Dictionary_expected key)
-          | Directory m -> Ok (Directory (M.add x value m))
+          | Value _ -> Error (`Dictionary_expected key)
+          | Dictionary m -> Ok (Dictionary (M.add x value m))
         end
       | hd::tl ->
         begin
           match t' with
-          | File _ -> Error (`Dictionary_expected key)
-          | Directory m ->
+          | Value _ -> Error (`Dictionary_expected key)
+          | Dictionary m ->
             let node = match M.find_opt hd m with
-              | None -> Directory M.empty
+              | None -> Dictionary M.empty
               | Some t'' -> t''
             in
             add node tl >>= fun t''' ->
             let m' = M.add hd t''' m in
-            Ok (Directory m')
+            Ok (Dictionary m')
         end
     in
     add t (Mirage_kv.Key.segments key)
 
   let remove_file_or_directory t key =
     let rec remove t = function
-      | [] -> Ok (Directory M.empty)
+      | [] -> Ok (Dictionary M.empty)
       | [x] -> begin match t with
-          | File _ -> Error (`Dictionary_expected key)
-          | Directory m ->
+          | Value _ -> Error (`Dictionary_expected key)
+          | Dictionary m ->
             let m' = M.remove x m in
-            Ok (Directory m')
+            Ok (Dictionary m')
         end
       | hd::tl -> match t with
-        | File _ -> Error (`Dictionary_expected key)
-        | Directory m ->
+        | Value _ -> Error (`Dictionary_expected key)
+        | Dictionary m ->
           (match M.find_opt hd m with
            | None -> Error (`Dictionary_expected key)
            | Some t' -> Ok t') >>= fun node ->
           remove node tl >>| fun t' ->
           let m' = M.add hd t' m in
-          Directory m'
+          Dictionary m'
     in
     remove t (Mirage_kv.Key.segments key)
 
   let get (t : t) key =
     find_file_or_directory t key >>= function
-    | Directory _ -> Error (`Value_expected key)
-    | File value -> Ok value
+    | Dictionary _ -> Error (`Value_expected key)
+    | Value value -> Ok value
 
   let remove (t : t) path = remove_file_or_directory t path
 
   let list (t : t) key =
     find_file_or_directory t key >>= function
-    | File _ -> Error (`Dictionary_expected key)
-    | Directory m -> Ok (List.map (fun (key, value) -> key, match value with File _ -> `Value | Directory _ -> `Dictionary) @@ M.bindings m)
+    | Value _ -> Error (`Dictionary_expected key)
+    | Dictionary m -> Ok (List.map (fun (key, value) -> key, match value with Value _ -> `Value | Dictionary _ -> `Dictionary) @@ M.bindings m)
 
   let set (t : t) key data =
-    add_file_or_directory t key (File data)
+    add_file_or_directory t key (Value data)
 
   let pp fmt t =
     let rec pp_things ?(prefix = "") () fmt = function
-      | File v -> Fmt.pf fmt "File %s %d: %s@." prefix (String.length v) v
-      | Directory m ->
+      | Value v -> Fmt.pf fmt "Value %s %d: %s@." prefix (String.length v) v
+      | Dictionary m ->
         List.iter (fun (k, v) ->
             pp_things ~prefix:(prefix ^ "/" ^ k) () fmt v)
           (M.bindings m)
@@ -101,8 +99,8 @@ module Pure = struct
     pp_things () fmt t
 
   let rec equal t t' = match t, t' with
-    | File v, File v' -> String.equal v v'
-    | Directory m, Directory m' -> M.equal equal m m'
+    | Value v, Value v' -> String.equal v v'
+    | Dictionary m, Dictionary m' -> M.equal equal m m'
     | _ -> false
 
 end
@@ -125,8 +123,8 @@ type t = Pure.t ref
 
 let exists m key = Lwt.return @@
   match Pure.find_file_or_directory !m key with
-  | Ok (File _) -> Ok (Some `Value)
-  | Ok (Directory _) -> Ok (Some `Dictionary)
+  | Ok (Value _) -> Ok (Some `Value)
+  | Ok (Dictionary _) -> Ok (Some `Dictionary)
   | Error (`Not_found _) -> Ok None
   | Error e -> Error e
 

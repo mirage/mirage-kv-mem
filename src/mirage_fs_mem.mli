@@ -1,4 +1,4 @@
-type write_error = [ Mirage_kv.write_error | `Directory_not_empty ]
+type write_error = Mirage_kv.write_error
 type error = Mirage_kv.error
 
 module Pure : sig
