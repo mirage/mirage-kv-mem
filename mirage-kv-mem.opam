@@ -30,6 +30,7 @@ depends: [
   "rresult"
   "fmt"
   "ptime"
+  "mirage-clock-unix" {>= "2.0.0"}
 ]
 
 synopsis: "In-memory key value store for MirageOS"
