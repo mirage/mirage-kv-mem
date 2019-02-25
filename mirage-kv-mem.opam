@@ -26,9 +26,10 @@ depends: [
   "alcotest" {with-test}
   "ppx_deriving" {with-test}
   "mirage-clock" {>= "2.0.0"}
-  "mirage-kv-lwt"
+  "mirage-kv-lwt" {>= "2.0.0"}
   "rresult"
   "fmt"
+  "ptime"
 ]
 
 synopsis: "In-memory key value store for MirageOS"
