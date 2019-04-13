@@ -40,7 +40,7 @@ module Make_async (Clock : Mirage_clock.PCLOCK) : sig
     with type write_error := write_error
      and type error := error
 
-  val connect : unit -> t Lwt.t
+  val connect : unit -> t Async.Deferred.t
   val pp : t Fmt.t
   val equal : t -> t -> bool
 end
