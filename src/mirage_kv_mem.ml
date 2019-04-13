@@ -172,3 +172,64 @@ module Make (CLOCK : Mirage_clock.PCLOCK) = struct
 
   let equal a b = Pure.equal !a !b
 end
+
+module Make_async (CLOCK : Mirage_clock.PCLOCK) = struct
+  open Async
+  type +'a io = 'a Deferred.t
+  type value = string
+  type key = Mirage_kv.Key.t
+
+  [@@@warning "-34"]
+  type nonrec error = error
+  let pp_error = pp_error
+
+  [@@@warning "-34"]
+  type nonrec write_error = write_error
+  let pp_write_error = pp_write_error
+
+  let now () = Ptime.v (CLOCK.now_d_ps ())
+
+  let connect () = return (ref (Pure.empty (now ()) ()))
+  let disconnect _t = return ()
+
+  type t = Pure.t ref
+
+  let last_modified dict key =
+    return @@ match Pure.last_modified !dict key with
+    | Ok mtime -> Ok Ptime.(Span.to_d_ps (to_span mtime))
+    | Error e -> Error e
+
+  let digest dict key =
+    return @@ match Pure.get_node !dict key with
+    | Ok (Value (_, data)) -> Ok (Digest.string data)
+    | Ok (Dictionary (mtime, dict)) ->
+      let data = Fmt.to_to_string Pure.pp (Dictionary (mtime, dict)) in
+      Ok (Digest.string data)
+    | Error e -> Error e
+
+  let batch dict ?retries:_ f = f dict
+  (* //cc samoht is this correct for in-memory store behaviour? *)
+
+  let exists dict key =
+    return @@ match Pure.get_node !dict key with
+    | Ok (Value _) -> Ok (Some `Value)
+    | Ok (Dictionary _) -> Ok (Some `Dictionary)
+    | Error (`Not_found _) -> Ok None
+    | Error e -> Error e
+
+  let get dict key = return @@ Pure.get !dict key
+
+  let remove dict key = return @@ match Pure.remove !dict key (now ()) with
+    | Error e -> Error e
+    | Ok dict' -> dict := dict'; Ok ()
+
+  let list dict key = return @@ Pure.list !dict key
+
+  let set dict key data = return @@ match Pure.set !dict key (now ()) data with
+    | Error e -> Error e
+    | Ok dict' -> dict := dict'; Ok ()
+
+  let pp fmt dict = Pure.pp fmt !dict
+
+  let equal a b = Pure.equal !a !b
+end

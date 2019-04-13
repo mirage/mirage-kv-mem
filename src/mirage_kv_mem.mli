@@ -31,3 +31,16 @@ module Make (Clock : Mirage_clock.PCLOCK) : sig
   val pp : t Fmt.t
   val equal : t -> t -> bool
 end
+
+module Make_async (Clock : Mirage_clock.PCLOCK) : sig
+  type nonrec error = error
+  type nonrec write_error = write_error
+
+  include Mirage_kv_async.RW
+    with type write_error := write_error
+     and type error := error
+
+  val connect : unit -> t Lwt.t
+  val pp : t Fmt.t
+  val equal : t -> t -> bool
+end
