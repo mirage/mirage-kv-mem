@@ -114,8 +114,6 @@ module Pure = struct
 end
 
 module Make (CLOCK : Mirage_clock.PCLOCK) = struct
-  type +'a io = 'a Lwt.t
-  type value = string
   type key = Mirage_kv.Key.t
 
   [@@@warning "-34"]
