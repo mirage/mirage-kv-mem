@@ -108,6 +108,81 @@ let rename () =
               (Pure.rename m ~source:(key_of_str "b") ~dest:key_a now)
   | Error _ -> Alcotest.fail "Unexpected map write result"
 
+let rename_replace () =
+  let expected = Ok (add key_a bc empty_m) in
+  match Pure.set empty_m (key_of_str "b") now bc with
+  | Error _ -> Alcotest.fail "Unexpected map write result"
+  | Ok m ->
+    match Pure.set m (key_of_str "a") now neu with
+    | Error _ -> Alcotest.fail "Unexpected map write result"
+    | Ok m ->
+      Alcotest.check compare_write_res "hello" expected
+        (Pure.rename m ~source:(key_of_str "b") ~dest:key_a now)
+
+let rename_value_to_dict () =
+  let expected =
+    Ok (add (key_of_str "a/b") bc
+          (add (key_of_str "a/a") neu empty_m))
+  in
+  match Pure.set empty_m (key_of_str "b") now bc with
+  | Error _ -> Alcotest.fail "Unexpected map write result"
+  | Ok m ->
+    match Pure.set m (key_of_str "a/a") now neu with
+    | Ok m ->
+      Alcotest.check compare_write_res "hello" expected
+        (Pure.rename m ~source:(key_of_str "b") ~dest:key_a now)
+    | Error _ -> Alcotest.fail "Unexpected map write result"
+
+let rename_dict () =
+  let expected =
+    Ok (add (key_of_str "b/b") neu
+          (add (key_of_str "b/a") bc empty_m))
+  in
+  match Pure.set empty_m (key_of_str "a/a") now bc with
+  | Error _ -> Alcotest.fail "Unexpected map write result"
+  | Ok m ->
+    match Pure.set m (key_of_str "a/b") now neu with
+    | Ok m ->
+      Alcotest.check compare_write_res "hello" expected
+        (Pure.rename m ~source:(key_of_str "a") ~dest:(key_of_str "b") now)
+    | Error _ -> Alcotest.fail "Unexpected map write result"
+
+let rename_dict_to_value () =
+  let expected = Error (`Value_expected (key_of_str "a")) in
+  match Pure.set empty_m (key_of_str "a/a") now bc with
+  | Error _ -> Alcotest.fail "Unexpected map write result"
+  | Ok m ->
+    match Pure.set m (key_of_str "b") now neu with
+    | Ok m ->
+      Alcotest.check compare_write_res "hello" expected
+        (Pure.rename m ~source:(key_of_str "a") ~dest:(key_of_str "b") now)
+    | Error _ -> Alcotest.fail "Unexpected map write result"
+
+let rename_dict_to_dict () =
+  let expected =
+    Ok (add (key_of_str "b/b") neu
+          (add (key_of_str "b/a/a") bc empty_m))
+  in
+  match Pure.set empty_m (key_of_str "a/a") now bc with
+  | Error _ -> Alcotest.fail "Unexpected map write result"
+  | Ok m ->
+    match Pure.set m (key_of_str "b/b") now neu with
+    | Ok m ->
+      Alcotest.check compare_write_res "hello" expected
+        (Pure.rename m ~source:(key_of_str "a") ~dest:(key_of_str "b") now)
+    | Error _ -> Alcotest.fail "Unexpected map write result"
+
+let rename_dict_to_subdir () =
+  let expected = Error `Rename_source_prefix in
+  match Pure.set empty_m (key_of_str "a/a") now bc with
+  | Error _ -> Alcotest.fail "Unexpected map write result"
+  | Ok m ->
+    match Pure.set m (key_of_str "a/b/b") now bc with
+    | Error _ -> Alcotest.fail "Unexpected map write result"
+    | Ok m ->
+      Alcotest.check compare_write_res "hello" expected
+        (Pure.rename m ~source:(key_of_str "a") ~dest:(key_of_str "a/b") now)
+
 let tests = [
   "create empty key value store", `Quick, empty;
   "reading a value", `Quick, read;
@@ -119,6 +194,12 @@ let tests = [
   "writing multiple values", `Quick, write_multiple;
   "size", `Quick, size;
   "rename", `Quick, rename;
+  "rename replace", `Quick, rename_replace;
+  "rename value to dict", `Quick, rename_value_to_dict;
+  "rename dict", `Quick, rename_dict;
+  "rename dict to value", `Quick, rename_dict_to_value;
+  "rename dict to dict", `Quick, rename_dict_to_dict;
+  "rename dict to subdir", `Quick, rename_dict_to_subdir;
 ]
 
 let tests = [
