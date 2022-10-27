@@ -47,6 +47,13 @@ let read () =
   let expected = Ok bc in
   Alcotest.check compare_read_res "hello" expected (Pure.get map key_a)
 
+let read_partial () =
+  Alcotest.check compare_read_res "hello" (Ok "bc") (Pure.get_partial map key_a ~offset:0 ~length:2);
+  Alcotest.check compare_read_res "hello" (Ok "c") (Pure.get_partial map key_a ~offset:1 ~length:1);
+  Alcotest.check compare_read_res "hello" (Ok "b") (Pure.get_partial map key_a ~offset:0 ~length:1);
+  Alcotest.check compare_read_res "hello" (Ok "") (Pure.get_partial map key_a ~offset:3 ~length:1);
+  Alcotest.check compare_read_res "hello" (Ok "c") (Pure.get_partial map key_a ~offset:1 ~length:4)
+
 let destroy () =
   let expected = empty_m in
   Alcotest.check compare_write_res "hello" (Ok expected)
@@ -66,6 +73,24 @@ let write () =
   Alcotest.check compare_write_res "hello" expected
     (Pure.set empty_m key_a now bc)
 
+let write_partial () =
+  let expected = Ok (add key_a bc empty_m) in
+  Alcotest.check compare_write_res __LOC__ expected
+    (Pure.set_partial empty_m key_a now ~offset:1 bc);
+  Alcotest.check compare_write_res __LOC__ expected
+    (Pure.set_partial empty_m key_a now ~offset:2 bc);
+  match Pure.set empty_m key_a now bc with
+  | Error _ -> Alcotest.fail "unexpected set result"
+  | Ok m ->
+    let exp = Ok (add key_a "bbc" empty_m) in
+    Alcotest.check compare_write_res __LOC__ exp
+      (Pure.set_partial m key_a now ~offset:1 bc);
+    let exp = Ok (add key_a "bcbc" empty_m) in
+    Alcotest.check compare_write_res __LOC__ exp
+      (Pure.set_partial m key_a now ~offset:2 bc);
+    Alcotest.check compare_write_res __LOC__ exp
+      (Pure.set_partial m key_a now ~offset:10 bc)
+
 let write_multiple () =
   let expected = Ok (add key_a bc (add (key_of_str "b") bc empty_m)) in
   match Pure.set empty_m (key_of_str "b") now bc with
@@ -73,13 +98,27 @@ let write_multiple () =
               (Pure.set m key_a now bc)
   | Error _ -> Alcotest.fail "Unexpected map write result"
 
+let size () =
+  Alcotest.(check (result int e) __LOC__ (Ok 2) (Pure.size map key_a))
+
+let rename () =
+  let expected = Ok (add key_a bc empty_m) in
+  match Pure.set empty_m (key_of_str "b") now bc with
+  | Ok m -> Alcotest.check compare_write_res "hello" expected
+              (Pure.rename m ~source:(key_of_str "b") ~dest:key_a now)
+  | Error _ -> Alcotest.fail "Unexpected map write result"
+
 let tests = [
   "create empty key value store", `Quick, empty;
   "reading a value", `Quick, read;
+  "partial reading a value", `Quick, read_partial;
   "remove value", `Quick, destroy;
   "list entries for dictionary", `Quick, list;
   "writing a value", `Quick, write;
+  "write partial", `Quick, write_partial;
   "writing multiple values", `Quick, write_multiple;
+  "size", `Quick, size;
+  "rename", `Quick, rename;
 ]
 
 let tests = [
