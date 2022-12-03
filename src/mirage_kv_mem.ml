@@ -1,8 +1,5 @@
-type write_error = [ Mirage_kv.write_error | `Rename_source_prefix | `Rename_source_is_root ]
-let pp_write_error ppf = function
-  | #Mirage_kv.write_error as e -> Mirage_kv.pp_write_error ppf e
-  | `Rename_source_prefix -> Fmt.string ppf "rename: source is a prefix of dest"
-  | `Rename_source_is_root -> Fmt.string ppf "rename: source is root"
+type write_error = Mirage_kv.write_error
+let pp_write_error = Mirage_kv.pp_write_error
 
 type error = Mirage_kv.error
 let pp_error = Mirage_kv.pp_error
@@ -41,14 +38,15 @@ module Pure = struct
 
   let size t key =
     let* v = get t key in
-    Ok (String.length v)
+    Ok (Optint.Int63.of_int (String.length v))
 
   let get_partial t key ~offset ~length =
     let* v = get t key in
-    if String.length v < offset then
+    if Int64.of_int (String.length v) < Optint.Int63.to_int64 offset then
       Ok ""
     else
-      Ok (String.sub v offset ((min (String.length v) (offset + length)) - offset))
+      let off = Optint.Int63.to_int offset in
+      Ok (String.sub v off (min (String.length v - off) length))
 
   let last_modified t key =
     let* v = get_node t key in
@@ -85,7 +83,8 @@ module Pure = struct
     | Value _ -> Error (`Dictionary_expected key)
     | Dictionary (_, m) ->
       let name_and_kind (k, v) =
-        k, match v with Value _ -> `Value | Dictionary _ -> `Dictionary
+        Mirage_kv.Key.add key k,
+        match v with Value _ -> `Value | Dictionary _ -> `Dictionary
       in
       Ok (List.map name_and_kind @@ M.bindings m)
 
@@ -117,9 +116,10 @@ module Pure = struct
   let set_partial t key now ~offset data =
     match get t key with
     | Ok v ->
-      let v' = String.sub v 0 (min offset (String.length v)) in
+      let off = Optint.Int63.to_int offset in
+      let v' = String.sub v 0 (min off (String.length v)) in
       let v'' =
-        let start = min (String.length v) (offset + String.length data) in
+        let start = min (String.length v) (off + String.length data) in
         String.sub v start (String.length v - start)
       in
       set t key now (v' ^ data ^ v'')
@@ -137,7 +137,7 @@ module Pure = struct
         | Ok (Dictionary _) ->
           let* last_seg = match List.rev (Mirage_kv.Key.segments source) with
             | hd::_ -> Ok hd
-            | [] -> Error `Rename_source_is_root
+            | [] -> Error (`Rename_source_prefix (source, dest))
           in
           set t (Mirage_kv.Key.add dest last_seg) n v
       end
@@ -177,11 +177,11 @@ module Pure = struct
         if String.length dststr >= String.length srcstr &&
            String.(equal srcstr (String.sub dststr 0 (String.length srcstr)))
         then
-          Error `Rename_source_prefix
+          Error (`Rename_source_prefix (source, dest))
         else
           let* last_seg =
             match List.rev (Mirage_kv.Key.segments source) with
-            | [] -> Error `Rename_source_is_root
+            | [] -> Error (`Rename_source_prefix (source, dest))
             | last_seg :: _ -> Ok last_seg
           in
           let* t = remove t source now in
@@ -224,9 +224,7 @@ module Make (CLOCK : Mirage_clock.PCLOCK) = struct
   type t = Pure.t ref
 
   let last_modified dict key =
-    Lwt.return @@ match Pure.last_modified !dict key with
-    | Ok mtime -> Ok Ptime.(Span.to_d_ps (to_span mtime))
-    | Error e -> Error e
+    Lwt.return @@ Pure.last_modified !dict key
 
   let digest dict key =
     Lwt.return @@ match Pure.get_node !dict key with
@@ -235,9 +233,6 @@ module Make (CLOCK : Mirage_clock.PCLOCK) = struct
       let data = Fmt.to_to_string Pure.pp (Dictionary (mtime, dict)) in
       Ok (Digest.string data)
     | Error e -> Error e
-
-  let batch dict ?retries:_ f = f dict
-  (* //cc samoht is this correct for in-memory store behaviour? *)
 
   let exists dict key =
     Lwt.return @@ match Pure.get_node !dict key with
@@ -276,4 +271,11 @@ module Make (CLOCK : Mirage_clock.PCLOCK) = struct
   let pp fmt dict = Pure.pp fmt !dict
 
   let equal a b = Pure.equal !a !b
+
+  let allocate dict key ?last_modified size =
+    let data = String.make (Optint.Int63.to_int size) '\000' in
+    let now = Option.value ~default:(now ()) last_modified in
+    Lwt.return @@ match Pure.set !dict key now data with
+    | Error e -> Error e
+    | Ok dict' -> dict := dict'; Ok ()
 end
