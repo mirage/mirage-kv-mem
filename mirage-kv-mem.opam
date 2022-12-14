@@ -29,7 +29,7 @@ depends: [
   "fmt"
   "ptime"
   "mirage-clock-unix" {>= "3.0.0"}
-  "optint" {with-test}
+  "optint"
 ]
 conflicts: [ "result" {< "1.5"} ]
 
