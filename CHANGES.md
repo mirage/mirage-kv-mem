@@ -1,3 +1,7 @@
+### v3.2.0 (2022-12-14)
+
+* upgrade to mirage-kv 6.0.0 interface (#5 @hannesm)
+
 ### v3.1.0 (2022-10-27)
 
 * upgrade to mirage-kv 5.0.0 interface (#4 @hannesm)
