@@ -80,7 +80,15 @@ let destroy () =
   Alcotest.check compare_write_res "hello" (Ok expected)
     (Pure.remove map key_a now)
 
-type node = [ `Value | `Dictionary ] [@@deriving eq, show]
+type node = [ `Value | `Dictionary ]
+
+let pp_node ppf = function
+  | `Value -> Fmt.string ppf "value"
+  | `Dictionary -> Fmt.string ppf "dictionary"
+
+let equal_node a b = match a, b with
+  | `Value, `Value | `Dictionary, `Dictionary -> true
+  | _ -> false
 
 let list () =
   let map_of_three = add (key_of_str "b") "" (add (key_of_str "c") "" map) in
