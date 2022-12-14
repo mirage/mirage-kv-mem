@@ -273,9 +273,14 @@ module Make (CLOCK : Mirage_clock.PCLOCK) = struct
   let equal a b = Pure.equal !a !b
 
   let allocate dict key ?last_modified size =
-    let data = String.make (Optint.Int63.to_int size) '\000' in
-    let now = Option.value ~default:(now ()) last_modified in
-    Lwt.return @@ match Pure.set !dict key now data with
-    | Error e -> Error e
-    | Ok dict' -> dict := dict'; Ok ()
+    let open Lwt.Infix in
+    exists dict key >|= function
+    | Error _ as e -> e
+    | Ok Some _ -> Error (`Already_present key)
+    | Ok None ->
+      let data = String.make (Optint.Int63.to_int size) '\000' in
+      let now = Option.value ~default:(now ()) last_modified in
+      match Pure.set !dict key now data with
+      | Error e -> Error e
+      | Ok dict' -> dict := dict'; Ok ()
 end
