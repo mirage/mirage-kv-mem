@@ -1,7 +1,6 @@
 (test
  (name      test_pure)
  (modules   test_pure)
- (libraries alcotest mirage-kv-mem ptime)
- (preprocess (pps ppx_deriving.std))
+ (libraries alcotest mirage-kv-mem ptime optint)
  (package   mirage-kv-mem)
 )

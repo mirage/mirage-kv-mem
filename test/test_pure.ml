@@ -23,6 +23,22 @@ let e =
 
 let compare_read_res = Alcotest.result Alcotest.string e
 
+let key_test =
+  let module M = struct
+    type t = Mirage_kv.Key.t
+    let pp = Mirage_kv.Key.pp
+    let equal = Mirage_kv.Key.equal
+  end in
+  (module M: Alcotest.TESTABLE with type t = M.t)
+
+let int63_test =
+  let module M = struct
+    type t = Optint.Int63.t
+    let pp = Optint.Int63.pp
+    let equal = Optint.Int63.equal
+  end in
+  (module M: Alcotest.TESTABLE with type t = M.t)
+
 let now = Ptime.epoch
 
 let bc = "bc"
@@ -48,24 +64,37 @@ let read () =
   Alcotest.check compare_read_res "hello" expected (Pure.get map key_a)
 
 let read_partial () =
-  Alcotest.check compare_read_res "hello" (Ok "bc") (Pure.get_partial map key_a ~offset:0 ~length:2);
-  Alcotest.check compare_read_res "hello" (Ok "c") (Pure.get_partial map key_a ~offset:1 ~length:1);
-  Alcotest.check compare_read_res "hello" (Ok "b") (Pure.get_partial map key_a ~offset:0 ~length:1);
-  Alcotest.check compare_read_res "hello" (Ok "") (Pure.get_partial map key_a ~offset:3 ~length:1);
-  Alcotest.check compare_read_res "hello" (Ok "c") (Pure.get_partial map key_a ~offset:1 ~length:4)
+  Alcotest.check compare_read_res "hello" (Ok "bc")
+    (Pure.get_partial map key_a ~offset:(Optint.Int63.of_int 0) ~length:2);
+  Alcotest.check compare_read_res "hello" (Ok "c")
+    (Pure.get_partial map key_a ~offset:(Optint.Int63.of_int 1) ~length:1);
+  Alcotest.check compare_read_res "hello" (Ok "b")
+    (Pure.get_partial map key_a ~offset:(Optint.Int63.of_int 0) ~length:1);
+  Alcotest.check compare_read_res "hello" (Ok "")
+    (Pure.get_partial map key_a ~offset:(Optint.Int63.of_int 3) ~length:1);
+  Alcotest.check compare_read_res "hello" (Ok "c")
+    (Pure.get_partial map key_a ~offset:(Optint.Int63.of_int 1) ~length:4)
 
 let destroy () =
   let expected = empty_m in
   Alcotest.check compare_write_res "hello" (Ok expected)
     (Pure.remove map key_a now)
 
-type node = [ `Value | `Dictionary ] [@@deriving eq, show]
+type node = [ `Value | `Dictionary ]
+
+let pp_node ppf = function
+  | `Value -> Fmt.string ppf "value"
+  | `Dictionary -> Fmt.string ppf "dictionary"
+
+let equal_node a b = match a, b with
+  | `Value, `Value | `Dictionary, `Dictionary -> true
+  | _ -> false
 
 let list () =
   let map_of_three = add (key_of_str "b") "" (add (key_of_str "c") "" map) in
-  let expected = Ok [ ("a", `Value) ; ("b", `Value) ; ("c", `Value) ] in
+  let expected = Ok [ (key_of_str "a", `Value) ; (key_of_str "b", `Value) ; (key_of_str "c", `Value) ] in
   Alcotest.check
-    Alcotest.(result (slist (pair string (testable pp_node equal_node)) compare) e)
+    Alcotest.(result (slist (pair key_test (testable pp_node equal_node)) compare) e)
     "hello" expected (Pure.list map_of_three Mirage_kv.Key.empty)
 
 let write () =
@@ -76,20 +105,20 @@ let write () =
 let write_partial () =
   let expected = Ok (add key_a bc empty_m) in
   Alcotest.check compare_write_res __LOC__ expected
-    (Pure.set_partial empty_m key_a now ~offset:1 bc);
+    (Pure.set_partial empty_m key_a now ~offset:(Optint.Int63.of_int 1) bc);
   Alcotest.check compare_write_res __LOC__ expected
-    (Pure.set_partial empty_m key_a now ~offset:2 bc);
+    (Pure.set_partial empty_m key_a now ~offset:(Optint.Int63.of_int 2) bc);
   match Pure.set empty_m key_a now bc with
   | Error _ -> Alcotest.fail "unexpected set result"
   | Ok m ->
     let exp = Ok (add key_a "bbc" empty_m) in
     Alcotest.check compare_write_res __LOC__ exp
-      (Pure.set_partial m key_a now ~offset:1 bc);
+      (Pure.set_partial m key_a now ~offset:(Optint.Int63.of_int 1) bc);
     let exp = Ok (add key_a "bcbc" empty_m) in
     Alcotest.check compare_write_res __LOC__ exp
-      (Pure.set_partial m key_a now ~offset:2 bc);
+      (Pure.set_partial m key_a now ~offset:(Optint.Int63.of_int 2) bc);
     Alcotest.check compare_write_res __LOC__ exp
-      (Pure.set_partial m key_a now ~offset:10 bc)
+      (Pure.set_partial m key_a now ~offset:(Optint.Int63.of_int 10) bc)
 
 let write_multiple () =
   let expected = Ok (add key_a bc (add (key_of_str "b") bc empty_m)) in
@@ -99,7 +128,8 @@ let write_multiple () =
   | Error _ -> Alcotest.fail "Unexpected map write result"
 
 let size () =
-  Alcotest.(check (result int e) __LOC__ (Ok 2) (Pure.size map key_a))
+  Alcotest.(check (result int63_test e) __LOC__ (Ok (Optint.Int63.of_int 2))
+              (Pure.size map key_a))
 
 let rename () =
   let expected = Ok (add key_a bc empty_m) in
@@ -173,7 +203,7 @@ let rename_dict_to_dict () =
     | Error _ -> Alcotest.fail "Unexpected map write result"
 
 let rename_dict_to_subdir () =
-  let expected = Error `Rename_source_prefix in
+  let expected = Error (`Rename_source_prefix (key_of_str "a", key_of_str "a/b")) in
   match Pure.set empty_m (key_of_str "a/a") now bc with
   | Error _ -> Alcotest.fail "Unexpected map write result"
   | Ok m ->
