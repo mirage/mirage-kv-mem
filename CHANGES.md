@@ -1,3 +1,7 @@
+### v3.2.1 (2022-12-14)
+
+* Adhere to mirage-kv documented allocate semantics (@hannesm)
+
 ### v3.2.0 (2022-12-14)
 
 * upgrade to mirage-kv 6.0.0 interface (#5 @hannesm)
