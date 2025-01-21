@@ -1,8 +1,6 @@
 type error = Mirage_kv.error
-val pp_error : error Fmt.t
 
 type write_error = Mirage_kv.write_error
-val pp_write_error : write_error Fmt.t
 
 module Pure : sig
   type t
@@ -23,15 +21,10 @@ module Pure : sig
   val pp : t Fmt.t
 end
 
-module Make (Clock : Mirage_clock.PCLOCK) : sig
-  type nonrec error = error
-  type nonrec write_error = write_error
+include Mirage_kv.RW
+  with type write_error := write_error
+   and type error := error
 
-  include Mirage_kv.RW
-    with type write_error := write_error
-     and type error := error
-
-  val connect : unit -> t Lwt.t
-  val pp : t Fmt.t
-  val equal : t -> t -> bool
-end
+val connect : unit -> t Lwt.t
+val pp : t Fmt.t
+val equal : t -> t -> bool

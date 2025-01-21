@@ -205,82 +205,72 @@ module Pure = struct
 
 end
 
-module Make (CLOCK : Mirage_clock.PCLOCK) = struct
-  type key = Mirage_kv.Key.t
+type key = Mirage_kv.Key.t
 
-  [@@@warning "-34"]
-  type nonrec error = error
-  let pp_error = pp_error
+let now () = Mirage_ptime.now ()
 
-  [@@@warning "-34"]
-  type nonrec write_error = write_error
-  let pp_write_error = pp_write_error
+let connect () = Lwt.return (ref (Pure.empty (now ()) ()))
+let disconnect _t = Lwt.return ()
 
-  let now () = Ptime.v (CLOCK.now_d_ps ())
+type t = Pure.t ref
 
-  let connect () = Lwt.return (ref (Pure.empty (now ()) ()))
-  let disconnect _t = Lwt.return ()
+let last_modified dict key =
+  Lwt.return @@ Pure.last_modified !dict key
 
-  type t = Pure.t ref
+let digest dict key =
+  Lwt.return @@ match Pure.get_node !dict key with
+  | Ok (Value (_, data)) -> Ok (Digest.string data)
+  | Ok (Dictionary (mtime, dict)) ->
+    let data = Fmt.to_to_string Pure.pp (Dictionary (mtime, dict)) in
+    Ok (Digest.string data)
+  | Error e -> Error e
 
-  let last_modified dict key =
-    Lwt.return @@ Pure.last_modified !dict key
+let exists dict key =
+  Lwt.return @@ match Pure.get_node !dict key with
+  | Ok (Value _) -> Ok (Some `Value)
+  | Ok (Dictionary _) -> Ok (Some `Dictionary)
+  | Error (`Not_found _) -> Ok None
+  | Error e -> Error e
 
-  let digest dict key =
-    Lwt.return @@ match Pure.get_node !dict key with
-    | Ok (Value (_, data)) -> Ok (Digest.string data)
-    | Ok (Dictionary (mtime, dict)) ->
-      let data = Fmt.to_to_string Pure.pp (Dictionary (mtime, dict)) in
-      Ok (Digest.string data)
-    | Error e -> Error e
+let get dict key = Lwt.return @@ Pure.get !dict key
 
-  let exists dict key =
-    Lwt.return @@ match Pure.get_node !dict key with
-    | Ok (Value _) -> Ok (Some `Value)
-    | Ok (Dictionary _) -> Ok (Some `Dictionary)
-    | Error (`Not_found _) -> Ok None
-    | Error e -> Error e
+let get_partial dict key ~offset ~length =
+  Lwt.return @@ Pure.get_partial !dict key ~offset ~length
 
-  let get dict key = Lwt.return @@ Pure.get !dict key
+let size dict key = Lwt.return @@ Pure.size !dict key
 
-  let get_partial dict key ~offset ~length =
-    Lwt.return @@ Pure.get_partial !dict key ~offset ~length
+let remove dict key = Lwt.return @@ match Pure.remove !dict key (now ()) with
+  | Error e -> Error e
+  | Ok dict' -> dict := dict'; Ok ()
 
-  let size dict key = Lwt.return @@ Pure.size !dict key
+let list dict key = Lwt.return @@ Pure.list !dict key
 
-  let remove dict key = Lwt.return @@ match Pure.remove !dict key (now ()) with
+let set dict key data = Lwt.return @@ match Pure.set !dict key (now ()) data with
+  | Error e -> Error e
+  | Ok dict' -> dict := dict'; Ok ()
+
+let set_partial dict key ~offset data =
+  Lwt.return @@ match Pure.set_partial !dict key (now ()) ~offset data with
+  | Error e -> Error e
+  | Ok dict' -> dict := dict'; Ok ()
+
+let rename dict ~source ~dest =
+  Lwt.return @@ match Pure.rename !dict ~source ~dest (now ()) with
+  | Error e -> Error e
+  | Ok dict' -> dict := dict'; Ok ()
+
+let pp fmt dict = Pure.pp fmt !dict
+
+let equal a b = Pure.equal !a !b
+
+let allocate dict key ?last_modified size =
+  let open Lwt.Infix in
+  exists dict key >|= function
+  | Error _ as e -> e
+  | Ok Some _ -> Error (`Already_present key)
+  | Ok None ->
+    let data = String.make (Optint.Int63.to_int size) '\000' in
+    let now = Option.value ~default:(now ()) last_modified in
+    match Pure.set !dict key now data with
     | Error e -> Error e
     | Ok dict' -> dict := dict'; Ok ()
-
-  let list dict key = Lwt.return @@ Pure.list !dict key
-
-  let set dict key data = Lwt.return @@ match Pure.set !dict key (now ()) data with
-    | Error e -> Error e
-    | Ok dict' -> dict := dict'; Ok ()
-
-  let set_partial dict key ~offset data =
-    Lwt.return @@ match Pure.set_partial !dict key (now ()) ~offset data with
-    | Error e -> Error e
-    | Ok dict' -> dict := dict'; Ok ()
-
-  let rename dict ~source ~dest =
-    Lwt.return @@ match Pure.rename !dict ~source ~dest (now ()) with
-    | Error e -> Error e
-    | Ok dict' -> dict := dict'; Ok ()
-
-  let pp fmt dict = Pure.pp fmt !dict
-
-  let equal a b = Pure.equal !a !b
-
-  let allocate dict key ?last_modified size =
-    let open Lwt.Infix in
-    exists dict key >|= function
-    | Error _ as e -> e
-    | Ok Some _ -> Error (`Already_present key)
-    | Ok None ->
-      let data = String.make (Optint.Int63.to_int size) '\000' in
-      let now = Option.value ~default:(now ()) last_modified in
-      match Pure.set !dict key now data with
-      | Error e -> Error e
-      | Ok dict' -> dict := dict'; Ok ()
-end
