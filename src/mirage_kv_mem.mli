@@ -28,3 +28,4 @@ include Mirage_kv.RW
 val connect : unit -> t Lwt.t
 val pp : t Fmt.t
 val equal : t -> t -> bool
+val set_last_modified : t -> Ptime.t option -> unit

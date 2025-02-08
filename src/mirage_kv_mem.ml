@@ -209,16 +209,18 @@ type key = Mirage_kv.Key.t
 
 let now () = Mirage_ptime.now ()
 
-let connect () = Lwt.return (ref (Pure.empty (now ()) ()))
+let connect () = Lwt.return (ref (Pure.empty (now ()) ()), ref None)
 let disconnect _t = Lwt.return ()
 
-type t = Pure.t ref
+type t = Pure.t ref * Ptime.t option ref
 
 let last_modified dict key =
-  Lwt.return @@ Pure.last_modified !dict key
+  match !(snd dict) with
+  | None -> Lwt.return @@ Pure.last_modified !(fst dict) key
+  | Some ts -> Lwt.return (Ok ts)
 
 let digest dict key =
-  Lwt.return @@ match Pure.get_node !dict key with
+  Lwt.return @@ match Pure.get_node !(fst dict) key with
   | Ok (Value (_, data)) -> Ok (Digest.string data)
   | Ok (Dictionary (mtime, dict)) ->
     let data = Fmt.to_to_string Pure.pp (Dictionary (mtime, dict)) in
@@ -226,42 +228,42 @@ let digest dict key =
   | Error e -> Error e
 
 let exists dict key =
-  Lwt.return @@ match Pure.get_node !dict key with
+  Lwt.return @@ match Pure.get_node !(fst dict) key with
   | Ok (Value _) -> Ok (Some `Value)
   | Ok (Dictionary _) -> Ok (Some `Dictionary)
   | Error (`Not_found _) -> Ok None
   | Error e -> Error e
 
-let get dict key = Lwt.return @@ Pure.get !dict key
+let get dict key = Lwt.return @@ Pure.get !(fst dict) key
 
 let get_partial dict key ~offset ~length =
-  Lwt.return @@ Pure.get_partial !dict key ~offset ~length
+  Lwt.return @@ Pure.get_partial !(fst dict) key ~offset ~length
 
-let size dict key = Lwt.return @@ Pure.size !dict key
+let size dict key = Lwt.return @@ Pure.size !(fst dict) key
 
-let remove dict key = Lwt.return @@ match Pure.remove !dict key (now ()) with
+let remove dict key = Lwt.return @@ match Pure.remove !(fst dict) key (now ()) with
   | Error e -> Error e
-  | Ok dict' -> dict := dict'; Ok ()
+  | Ok dict' -> fst dict := dict'; Ok ()
 
-let list dict key = Lwt.return @@ Pure.list !dict key
+let list dict key = Lwt.return @@ Pure.list !(fst dict) key
 
-let set dict key data = Lwt.return @@ match Pure.set !dict key (now ()) data with
+let set dict key data = Lwt.return @@ match Pure.set !(fst dict) key (now ()) data with
   | Error e -> Error e
-  | Ok dict' -> dict := dict'; Ok ()
+  | Ok dict' -> fst dict := dict'; Ok ()
 
 let set_partial dict key ~offset data =
-  Lwt.return @@ match Pure.set_partial !dict key (now ()) ~offset data with
+  Lwt.return @@ match Pure.set_partial !(fst dict) key (now ()) ~offset data with
   | Error e -> Error e
-  | Ok dict' -> dict := dict'; Ok ()
+  | Ok dict' -> fst dict := dict'; Ok ()
 
 let rename dict ~source ~dest =
-  Lwt.return @@ match Pure.rename !dict ~source ~dest (now ()) with
+  Lwt.return @@ match Pure.rename !(fst dict) ~source ~dest (now ()) with
   | Error e -> Error e
-  | Ok dict' -> dict := dict'; Ok ()
+  | Ok dict' -> fst dict := dict'; Ok ()
 
-let pp fmt dict = Pure.pp fmt !dict
+let pp fmt dict = Pure.pp fmt !(fst dict)
 
-let equal a b = Pure.equal !a !b
+let equal a b = Pure.equal !(fst a) !(fst b)
 
 let allocate dict key ?last_modified size =
   let open Lwt.Infix in
@@ -271,6 +273,9 @@ let allocate dict key ?last_modified size =
   | Ok None ->
     let data = String.make (Optint.Int63.to_int size) '\000' in
     let now = Option.value ~default:(now ()) last_modified in
-    match Pure.set !dict key now data with
+    match Pure.set !(fst dict) key now data with
     | Error e -> Error e
-    | Ok dict' -> dict := dict'; Ok ()
+    | Ok dict' -> fst dict := dict'; Ok ()
+
+let set_last_modified t ts =
+  snd t := ts
