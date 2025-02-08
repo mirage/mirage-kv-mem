@@ -207,17 +207,15 @@ end
 
 type key = Mirage_kv.Key.t
 
-let now () = Mirage_ptime.now ()
+type t = Pure.t ref * (unit -> Ptime.t)
 
-let connect () = Lwt.return (ref (Pure.empty (now ()) ()), ref None)
+let connect ?(now = Mirage_ptime.now) () =
+  Lwt.return (ref (Pure.empty (now ()) ()), now)
+
 let disconnect _t = Lwt.return ()
 
-type t = Pure.t ref * Ptime.t option ref
-
 let last_modified dict key =
-  match !(snd dict) with
-  | None -> Lwt.return @@ Pure.last_modified !(fst dict) key
-  | Some ts -> Lwt.return (Ok ts)
+  Lwt.return @@ Pure.last_modified !(fst dict) key
 
 let digest dict key =
   Lwt.return @@ match Pure.get_node !(fst dict) key with
@@ -241,23 +239,23 @@ let get_partial dict key ~offset ~length =
 
 let size dict key = Lwt.return @@ Pure.size !(fst dict) key
 
-let remove dict key = Lwt.return @@ match Pure.remove !(fst dict) key (now ()) with
+let remove dict key = Lwt.return @@ match Pure.remove !(fst dict) key ((snd dict) ()) with
   | Error e -> Error e
   | Ok dict' -> fst dict := dict'; Ok ()
 
 let list dict key = Lwt.return @@ Pure.list !(fst dict) key
 
-let set dict key data = Lwt.return @@ match Pure.set !(fst dict) key (now ()) data with
+let set dict key data = Lwt.return @@ match Pure.set !(fst dict) key ((snd dict) ()) data with
   | Error e -> Error e
   | Ok dict' -> fst dict := dict'; Ok ()
 
 let set_partial dict key ~offset data =
-  Lwt.return @@ match Pure.set_partial !(fst dict) key (now ()) ~offset data with
+  Lwt.return @@ match Pure.set_partial !(fst dict) key ((snd dict) ()) ~offset data with
   | Error e -> Error e
   | Ok dict' -> fst dict := dict'; Ok ()
 
 let rename dict ~source ~dest =
-  Lwt.return @@ match Pure.rename !(fst dict) ~source ~dest (now ()) with
+  Lwt.return @@ match Pure.rename !(fst dict) ~source ~dest ((snd dict) ()) with
   | Error e -> Error e
   | Ok dict' -> fst dict := dict'; Ok ()
 
@@ -272,10 +270,7 @@ let allocate dict key ?last_modified size =
   | Ok Some _ -> Error (`Already_present key)
   | Ok None ->
     let data = String.make (Optint.Int63.to_int size) '\000' in
-    let now = Option.value ~default:(now ()) last_modified in
+    let now = Option.value ~default:((snd dict) ()) last_modified in
     match Pure.set !(fst dict) key now data with
     | Error e -> Error e
     | Ok dict' -> fst dict := dict'; Ok ()
-
-let set_last_modified t ts =
-  snd t := ts

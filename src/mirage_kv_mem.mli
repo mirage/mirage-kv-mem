@@ -25,7 +25,6 @@ include Mirage_kv.RW
   with type write_error := write_error
    and type error := error
 
-val connect : unit -> t Lwt.t
+val connect : ?now:(unit -> Ptime.t) -> unit -> t Lwt.t
 val pp : t Fmt.t
 val equal : t -> t -> bool
-val set_last_modified : t -> Ptime.t option -> unit
