@@ -24,12 +24,11 @@ depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "1.3.0"}
   "alcotest" {with-test}
-  "mirage-clock" {>= "3.0.0"}
+  "mirage-ptime" {>= "5.0.0"}
   "mirage-kv" {>= "6.0.0"}
-  "fmt"
-  "ptime"
-  "mirage-clock-unix" {>= "3.0.0"}
-  "optint"
+  "fmt" {>= "0.9.0"}
+  "ptime" {>= "1.1.0"}
+  "optint" {>= "0.3.0"}
 ]
 conflicts: [ "result" {< "1.5"} ]
 
