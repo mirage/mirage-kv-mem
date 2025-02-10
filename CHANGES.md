@@ -1,3 +1,8 @@
+### v4.0.0 (2025-02-10)
+
+* Use dune variants and mirage-ptime instead of functorising over PCLOCK
+  (#6 @hannesm)
+
 ### v3.2.1 (2022-12-14)
 
 * Adhere to mirage-kv documented allocate semantics (@hannesm)

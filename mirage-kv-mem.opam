@@ -37,3 +37,4 @@ description: """
 Implements the mirage-kv interface, but does not provide a persistent data storage.
 Use for testing or amnesia.
 """
+x-maintenance-intent: [ "(latest)" ]
