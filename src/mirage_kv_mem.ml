@@ -77,6 +77,10 @@ module Pure = struct
     in
     remove t (Mirage_kv.Key.segments key)
 
+  (* TODO: replace with normal List.map when support
+     for OCaml 4.14 is dropped *)
+  let tailrec_map f = List.filter_map (fun x -> Some (f x))
+
   let list t key =
     let* v = get_node t key in
     match v with
@@ -86,7 +90,7 @@ module Pure = struct
         Mirage_kv.Key.add key k,
         match v with Value _ -> `Value | Dictionary _ -> `Dictionary
       in
-      Ok (List.map name_and_kind @@ M.bindings m)
+      Ok (tailrec_map name_and_kind @@ M.bindings m)
 
   let set t key now data =
     let value = Value (now, data) in
