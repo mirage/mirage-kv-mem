@@ -128,8 +128,8 @@ let write_multiple () =
   | Error _ -> Alcotest.fail "Unexpected map write result"
 
 let size () =
-  Alcotest.(check (result int63_test e) __LOC__ (Ok (Optint.Int63.of_int 2))
-              (Pure.size map key_a))
+  let size = Pure.size map key_a in
+  Alcotest.(check (result int63_test e) __LOC__ (Ok (Optint.Int63.of_int 2)) size)
 
 let rename () =
   let expected = Ok (add key_a bc empty_m) in
