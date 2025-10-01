@@ -1,3 +1,8 @@
+### v4.0.1 (2025-10-01)
+
+* Make listing tail-recursive (#7 @Firobe @reynir)
+* Add x-maintenance-intent opam field (@hannesm)
+
 ### v4.0.0 (2025-02-10)
 
 * Use dune variants and mirage-ptime instead of functorising over PCLOCK
